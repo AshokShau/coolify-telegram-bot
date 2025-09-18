@@ -2,10 +2,11 @@ package src
 
 import (
 	"fmt"
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"html"
 	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
 func startHandler(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -44,7 +45,7 @@ Use the menu below to get started.`,
 	return ext.EndGroups
 }
 
-func PingCommandHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+func pingCommandHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	start := time.Now()
 	msg, err := ctx.EffectiveMessage.Reply(b, "🏓 Pinging...", nil)
 	if err != nil {

@@ -106,7 +106,7 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 }
 
 func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/logs", c.BaseURL, uuid)
+	url := fmt.Sprintf("%s/api/v1/applications/%s/logs?lines=-1", c.BaseURL, uuid)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -136,7 +136,7 @@ func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
 		return "", err
 	}
 
-	return result.Logs, nil
+	return uploadToBatbin(result.Logs)
 }
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {

@@ -3,10 +3,11 @@ package src
 import (
 	"coolifymanager/src/config"
 	"fmt"
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"html"
 	"strings"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
 func listProjectsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -140,17 +141,14 @@ func logsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cb.Data, "logs:")
 	logs, err := config.Coolify.GetApplicationLogsByUUID(uuid)
 	if err != nil {
-		_, _, err = cb.Message.EditText(b, "❌ Logs error: "+err.Error(), nil)
+		_, _, _ = cb.Message.EditText(b, "❌ Logs error: "+err.Error(), nil)
+		return ext.EndGroups
 	}
 
-	if len(logs) > 4000 {
-		// TODO: send as file
-		return nil
-	}
-
-	_, _, err = cb.Message.EditText(b, "<b>📜 Logs</b>\n<pre>"+html.EscapeString(logs)+"</pre>", &gotgbot.EditMessageTextOpts{
+	_, _, err = cb.Message.EditText(b, "<b>📜 Logs</b>\n"+html.EscapeString(logs), &gotgbot.EditMessageTextOpts{
 		ParseMode: "HTML",
 	})
+
 	return err
 }
 

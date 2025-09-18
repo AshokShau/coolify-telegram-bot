@@ -25,7 +25,7 @@ func main() {
 
 	updater := ext.NewUpdater(src.Dispatcher, nil)
 
-	if config.WebhookUrl != "" {
+	if config.WebhookUrl != "" && config.Port != "" {
 		log.Println("🌐 Starting bot in Webhook mode...")
 		if err := startWebhookBot(updater, bot, config.WebhookUrl, "super-secret-token"); err != nil {
 			log.Fatalf("❌ Webhook init failed: %v", err)

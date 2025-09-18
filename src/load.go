@@ -3,20 +3,21 @@ package src
 import (
 	"encoding/json"
 	"fmt"
+	"html"
+	"log"
+	"time"
+
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"html"
-	"log"
-	"time"
 )
 
 func errorHandler(bot *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 	var msg string
 	if ctx.Update != nil {
 		if updateBytes, err := json.MarshalIndent(ctx.Update, "", "  "); err == nil {
-			msg = fmt.Sprintf("%s", html.EscapeString(string(updateBytes)))
+			msg = html.EscapeString(string(updateBytes))
 		} else {
 			msg = "failed to marshal update"
 		}
@@ -40,9 +41,9 @@ var (
 )
 
 func newDispatcher() *ext.Dispatcher {
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{Error: errorHandler, MaxRoutines: 50})
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{Error: errorHandler, MaxRoutines: -1})
 	dispatcher.AddHandler(handlers.NewCommand("start", startHandler))
-	dispatcher.AddHandler(handlers.NewCommand("ping", PingCommandHandler))
+	dispatcher.AddHandler(handlers.NewCommand("ping", pingCommandHandler))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("list_projects"), listProjectsHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("project_menu:"), projectMenuHandler))
