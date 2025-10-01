@@ -10,30 +10,31 @@ import (
 	"time"
 
 	"coolifymanager/src/coolity"
+
 	_ "github.com/joho/godotenv/autoload"
 )
 
 var (
-	Coolify    *coolify.Client
-	ApiUrl     = os.Getenv("API_URL")
-	ApiToken   = os.Getenv("API_TOKEN")
-	Token      = os.Getenv("TOKEN")
-	Port       = os.Getenv("PORT")
-	WebhookUrl = os.Getenv("WEBHOOK_URL")
-	devList    = os.Getenv("DEV_IDS") // comma-separated
-	devIDs     []int64                // parsed slice
+	Coolify  *coolify.Client
+	Token    = os.Getenv("TOKEN")
+	ApiId    = os.Getenv("API_ID")
+	ApiHash  = os.Getenv("API_HASH")
+	apiUrl   = os.Getenv("API_URL")
+	apiToken = os.Getenv("API_TOKEN")
+	devList  = os.Getenv("DEV_IDS")
+	devIDs   []int64
 )
 
-func Init() error {
-	if ApiUrl == "" || ApiToken == "" {
-		return errors.New("API_URL and API_TOKEN must be set")
+func InitConfig() error {
+	if apiUrl == "" || apiToken == "" || Token == "" {
+		return errors.New("API_URL , API_TOKEN and TOKEN must be set")
 	}
 
 	Coolify = &coolify.Client{
-		BaseURL: ApiUrl,
-		Token:   ApiToken,
+		BaseURL: apiUrl,
+		Token:   apiToken,
 		Client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 15 * time.Second,
 		},
 	}
 

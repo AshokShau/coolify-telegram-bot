@@ -3,89 +3,56 @@ package main
 import (
 	"coolifymanager/src"
 	"coolifymanager/src/config"
-	"fmt"
 	"log"
+	_ "net/http"
+	_ "net/http/pprof"
+	"strconv"
 	"time"
 
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-var allowedUpdates = []string{"message", "callback_query"}
+// handleFlood delays on flood wait errors
+func handleFlood(err error) bool {
+	if wait := tg.GetFloodWait(err); wait > 0 {
+		log.Printf("⚠️ Flood wait detected: sleeping for %ds", wait)
+		time.Sleep(time.Duration(wait) * time.Second)
+		return true
+	}
+	return false
+}
 
 func main() {
-	if err := config.Init(); err != nil {
+	if err := config.InitConfig(); err != nil {
 		log.Fatalf("❌ Failed to initialize config: %v", err)
 	}
 
-	bot, err := initBot()
+	apiId, err := strconv.Atoi(config.ApiId)
 	if err != nil {
-		log.Fatalf("❌ Failed to create bot: %v", err)
+		log.Fatalf("❌ Invalid API_ID: %v", err)
 	}
 
-	updater := ext.NewUpdater(src.Dispatcher, nil)
+	cfg := tg.NewClientConfigBuilder(int32(apiId), config.ApiHash).
+		WithSession("coolify.dat").
+		WithLogger(tg.NewLogger(tg.LogInfo).NoColor()).
+		WithFloodHandler(handleFlood).
+		Build()
 
-	if config.WebhookUrl != "" && config.Port != "" {
-		log.Println("🌐 Starting bot in Webhook mode...")
-		if err := startWebhookBot(updater, bot, config.WebhookUrl, "super-secret-token"); err != nil {
-			log.Fatalf("❌ Webhook init failed: %v", err)
-		}
-	} else {
-		log.Println("📡 Starting bot in Long Polling mode...")
-		if err := startLongPollingBot(updater, bot); err != nil {
-			log.Fatalf("❌ Polling init failed: %v", err)
-		}
-	}
-
-	log.Printf("🤖 Bot @%s is now running...\n", bot.User.Username)
-	updater.Idle()
-}
-
-func initBot() (*gotgbot.Bot, error) {
-	bot, err := gotgbot.NewBot(config.Token, nil)
+	client, err := tg.NewClient(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("could not initialize bot: %w", err)
+		log.Fatalf("❌ Failed to create client: %v", err)
 	}
-	return bot, nil
-}
-
-func startLongPollingBot(updater *ext.Updater, bot *gotgbot.Bot) error {
-	return updater.StartPolling(bot, &ext.PollingOpts{
-		DropPendingUpdates: true,
-		GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-			Timeout:        9,
-			AllowedUpdates: allowedUpdates,
-			RequestOpts: &gotgbot.RequestOpts{
-				Timeout: 10 * time.Second,
-			},
-		},
-	})
-}
-
-func startWebhookBot(updater *ext.Updater, bot *gotgbot.Bot, domain, webhookSecret string) error {
-	opts := ext.WebhookOpts{
-		ListenAddr:  "0.0.0.0:" + config.Port,
-		SecretToken: webhookSecret,
+	_, err = client.Conn()
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to Telegram: %v", err)
 	}
 
-	if err := updater.StartServer(opts); err != nil {
-		return fmt.Errorf("failed to start webhook server: %w", err)
+	err = client.LoginBot(config.Token)
+	if err != nil {
+		log.Fatalf("❌ Failed to login bot: %v", err)
 	}
 
-	if err := updater.AddWebhook(bot, bot.Token, &ext.AddWebhookOpts{
-		SecretToken: webhookSecret,
-	}); err != nil {
-		return fmt.Errorf("failed to add webhook: %w", err)
-	}
-
-	if err := updater.SetAllBotWebhooks(domain, &gotgbot.SetWebhookOpts{
-		MaxConnections:     100,
-		AllowedUpdates:     allowedUpdates,
-		DropPendingUpdates: true,
-		SecretToken:        webhookSecret,
-	}); err != nil {
-		return fmt.Errorf("failed to set webhook: %w", err)
-	}
-
-	return nil
+	src.InitFunc(client)
+	client.Logger.Info("Bot is running as @" + client.Me().Username)
+	client.Idle()
 }

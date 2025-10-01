@@ -105,35 +105,35 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 	return nil
 }
 
-func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
+func (c *Client) GetApplicationLogsByUUID(uuid string) ([]string, error) {
 	url := fmt.Sprintf("%s/api/v1/applications/%s/logs?lines=-1", c.BaseURL, uuid)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return "", errors.New("unauthenticated: invalid or missing token (401)")
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
 	}
 	if resp.StatusCode == http.StatusBadRequest {
-		return "", errors.New("invalid token (400)")
+		return nil, errors.New("invalid token (400)")
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return "", errors.New("application not found")
+		return nil, errors.New("application not found")
 	}
 
 	var result ApplicationLogs
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return uploadToBatbin(result.Logs)

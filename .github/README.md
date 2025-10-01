@@ -2,7 +2,7 @@
 
 A modern Telegram bot to **manage your Coolify applications** via buttons — no CLI, no dashboards.
 
-Built with [gotgbot](https://github.com/PaulSonOfLars/gotgbot), powered by Coolify's REST API.
+Built with [gogram](https://github.com/AmarnathCJD/gogram), powered by Coolify's REST API.
 
 ---
 
@@ -51,8 +51,6 @@ DEV_IDS=123456789
 go run main.go
 ```
 
-> ✅ The bot uses long polling by default. You can switch to webhooks if needed.
-
 ---
 
 ### 📄 Coolify API Endpoints Used
@@ -75,7 +73,6 @@ All requests are authenticated via a `Bearer` token.
 ### 📦 Tech Stack
 
 * Language: Go
-* Telegram: [gotgbot](https://github.com/PaulSonOfLars/gotgbot)
 * API: [Coolify REST API](https://github.com/coollabsio/coolify)
 
 ---
