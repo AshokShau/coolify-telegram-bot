@@ -188,7 +188,7 @@ func (c *Client) GetApplicationLogsByUUID(uuid string) ([]string, error) {
 		return nil, err
 	}
 
-	return uploadToBatbin(logs.Logs)
+	return uploadToSpacebin(logs.Logs)
 }
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
