@@ -3,7 +3,7 @@ package src
 import (
 	"coolifymanager/src/config"
 	"fmt"
-	"html"
+	"os"
 	"strings"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -116,17 +116,65 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 	keyboard := telegram.NewKeyboard().
 		AddRow(telegram.Button.Data("🔙 Back", "project_menu:"+uuid))
 
-	logsUrls, err := config.Coolify.GetApplicationLogsByUUID(uuid)
+	msg, _ := cb.Edit("Processing...")
+	logsData, err := config.Coolify.GetApplicationLogsByUUID(uuid)
 	if err != nil {
-		_, _ = cb.Edit("❌ Logs error: "+err.Error(), &telegram.SendOptions{ReplyMarkup: keyboard.Build()})
+		_, _ = cb.Edit("❌ Logs error: "+err.Error(), &telegram.SendOptions{
+			ReplyMarkup: keyboard.Build(),
+		})
 		return nil
 	}
 
-	_, err = cb.Edit(
-		fmt.Sprintf("<b>📜 Here are the logs:</b>\n%s", html.EscapeString(strings.Join(logsUrls, "\n"))),
-		&telegram.SendOptions{ParseMode: "HTML", ReplyMarkup: keyboard.Build()},
-	)
-	return err
+	tmpFile, err := os.CreateTemp("", "logs-*.log")
+	if err != nil {
+		_, _ = cb.Edit("❌ Failed to create temp file: "+err.Error(), nil)
+		return err
+	}
+
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.Write([]byte(logsData)); err != nil {
+		_, _ = cb.Edit("❌ Failed to write logs: "+err.Error(), nil)
+		return err
+	}
+	tmpFile.Close()
+	fileInfo, err := os.Stat(tmpFile.Name())
+	if err != nil {
+		_, _ = cb.Edit("❌ Failed to read temp file info: "+err.Error(), nil)
+		return err
+	}
+
+	var progress *telegram.ProgressManager
+	sizeMB := fileInfo.Size() / (1024 * 1024)
+	switch {
+	case sizeMB < 20:
+		progress = telegram.NewProgressManager(2)
+	case sizeMB < 50:
+		progress = telegram.NewProgressManager(4)
+	default:
+		progress = telegram.NewProgressManager(6)
+	}
+
+	progress.Edit(telegram.MediaDownloadProgress(msg, progress))
+
+	opts := telegram.SendOptions{
+		ProgressManager: progress,
+		Media:           tmpFile.Name(),
+		Attributes: []telegram.DocumentAttribute{
+			&telegram.DocumentAttributeFilename{
+				FileName: tmpFile.Name(),
+			},
+		},
+		Caption:     "LOGS",
+		MimeType:    "text/x-log",
+		ReplyMarkup: keyboard.Build(),
+	}
+	_, err = msg.Edit("LOGS", opts)
+	if err != nil {
+		_, _ = cb.Edit("❌ Failed to send logs: "+err.Error(), &telegram.SendOptions{ReplyMarkup: keyboard.Build()})
+		return err
+	}
+
+	return nil
 }
 
 func statusHandler(cb *telegram.CallbackQuery) error {

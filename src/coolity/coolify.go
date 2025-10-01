@@ -158,37 +158,37 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 	return nil
 }
 
-func (c *Client) GetApplicationLogsByUUID(uuid string) ([]string, error) {
+func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
 	url := fmt.Sprintf("%s/api/v1/applications/%s/logs?lines=-1", c.BaseURL, uuid)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+		return "", errors.New("unauthenticated: invalid or missing token (401)")
 	}
 	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
+		return "", errors.New("invalid token (400)")
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application logs not found")
+		return "", errors.New("application logs not found")
 	}
 
 	var logs ApplicationLogs
 	err = json.NewDecoder(resp.Body).Decode(&logs)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return uploadToSpacebin(logs.Logs)
+	return logs.Logs, nil
 }
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
