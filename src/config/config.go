@@ -30,13 +30,16 @@ func InitConfig() error {
 		return errors.New("API_URL , API_TOKEN and TOKEN must be set")
 	}
 
-	Coolify = &coolify.Client{
-		BaseURL: apiUrl,
-		Token:   apiToken,
-		Client: &http.Client{
-			Timeout: 15 * time.Second,
-		},
+	httpClient := &http.Client{
+		Timeout: 15 * time.Second,
 	}
+	// Initialize Coolify client with 30-minute cache TTL
+	Coolify = coolify.NewClient(
+		apiUrl,
+		apiToken,
+		httpClient,
+		30*time.Minute,
+	)
 
 	// Parse DEV_IDS
 	for _, idStr := range strings.Split(devList, ",") {
