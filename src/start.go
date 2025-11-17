@@ -2,6 +2,7 @@ package src
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -34,12 +35,15 @@ func pingHandler(m *telegram.NewMessage) error {
 	}
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
+
 	response := fmt.Sprintf(
 		"<b>📊 System Performance Metrics</b>\n\n"+
 			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
-			"🕒 <b>Uptime:</b> <code>%s</code>\n",
-		latency, uptime,
+			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
+			"➜ <b>Current Go Routines:</b> <code>%d</code>\n",
+		latency, uptime, runtime.NumGoroutine(),
 	)
+
 	_, err = msg.Edit(response)
 	return err
 }
