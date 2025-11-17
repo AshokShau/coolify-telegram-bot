@@ -40,7 +40,7 @@ func pingHandler(m *telegram.NewMessage) error {
 		"<b>📊 System Performance Metrics</b>\n\n"+
 			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
 			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
-			"➜ <b>Current Go Routines:</b> <code>%d</code>\n",
+			"⚙️ <b>Go Routines:</b> <code>%d</code>\n",
 		latency, uptime, runtime.NumGoroutine(),
 	)
 
