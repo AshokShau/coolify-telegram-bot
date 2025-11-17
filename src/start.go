@@ -21,7 +21,7 @@ Use the menu below to get started.`, m.Sender.FirstName, bot.FirstName)
 		AddRow(telegram.Button.Data("📋 List Projects", "list_projects")).
 		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects")).
 		AddRow(telegram.Button.URL("🛠️ Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/coolify-telegram-bot"))
-	_, err := m.Reply(response, telegram.SendOptions{
+	_, err := m.Reply(response, &telegram.SendOptions{
 		ReplyMarkup: keyboard.Build(),
 	})
 	return err

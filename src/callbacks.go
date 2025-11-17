@@ -168,7 +168,7 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 		MimeType:    "text/x-log",
 		ReplyMarkup: keyboard.Build(),
 	}
-	_, err = msg.Edit("LOGS", opts)
+	_, err = msg.Edit("LOGS", &opts)
 	if err != nil {
 		_, _ = cb.Edit("❌ Failed to send logs: "+err.Error(), &telegram.SendOptions{ReplyMarkup: keyboard.Build()})
 		return err

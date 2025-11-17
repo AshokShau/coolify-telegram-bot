@@ -34,7 +34,7 @@ func main() {
 
 	cfg := tg.NewClientConfigBuilder(int32(apiId), config.ApiHash).
 		WithSession("coolify.dat").
-		WithLogger(tg.NewLogger(tg.LogInfo).NoColor()).
+		WithLogger(tg.NewLogger(tg.LogInfo)).
 		WithFloodHandler(handleFlood).
 		Build()
 
