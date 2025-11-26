@@ -137,28 +137,17 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 		return err
 	}
 	tmpFile.Close()
-	fileInfo, err := os.Stat(tmpFile.Name())
-	if err != nil {
-		_, _ = cb.Edit("❌ Failed to read temp file info: "+err.Error(), nil)
-		return err
-	}
-
-	var progress *telegram.ProgressManager
-	sizeMB := fileInfo.Size() / (1024 * 1024)
-	switch {
-	case sizeMB < 20:
-		progress = telegram.NewProgressManager(2)
-	case sizeMB < 50:
-		progress = telegram.NewProgressManager(4)
-	default:
-		progress = telegram.NewProgressManager(6)
-	}
-
-	progress.Edit(telegram.MediaDownloadProgress(msg, progress))
 
 	opts := telegram.SendOptions{
-		ProgressManager: progress,
-		Media:           tmpFile.Name(),
+		ProgressCallback: func(pi *telegram.ProgressInfo) {
+			msg.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
+				pi.Percentage,
+				pi.CurrentSpeed/1024/1024,
+				pi.ETA,
+			))
+		},
+		ProgressInterval: 5,
+		Media:            tmpFile.Name(),
 		Attributes: []telegram.DocumentAttribute{
 			&telegram.DocumentAttributeFilename{
 				FileName: tmpFile.Name(),
