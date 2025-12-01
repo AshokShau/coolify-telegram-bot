@@ -36,12 +36,11 @@ cp sample.env .env
 Then edit `.env`:
 
 ```env
+API_ID=
+API_HASH=
 API_URL=https://app.coolify.io
 API_TOKEN=your_coolify_token
 TOKEN=your_telegram_bot_token
-PORT=8080
-WEBHOOK_URL=https://yourdomain.com/webhook
-ENV=dev
 DEV_IDS=123456789
 ```
 
