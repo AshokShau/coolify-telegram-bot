@@ -149,7 +149,12 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 	if c.cache != nil {
 		c.cache.Delete(fmt.Sprintf("app_%s", uuid))
 		c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
+
 		c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
 		c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
 		c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
 		c.cache.Delete("applications")
