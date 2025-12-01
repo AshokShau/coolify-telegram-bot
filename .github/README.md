@@ -2,7 +2,7 @@
 
 A modern Telegram bot to **manage your Coolify applications** via buttons — no CLI, no dashboards.
 
-Built with [gotgbot](https://github.com/PaulSonOfLars/gotgbot), powered by Coolify's REST API.
+Built with [gogram](https://github.com/AmarnathCJD/gogram), powered by Coolify's REST API.
 
 ---
 
@@ -36,12 +36,11 @@ cp sample.env .env
 Then edit `.env`:
 
 ```env
+API_ID=
+API_HASH=
 API_URL=https://app.coolify.io
 API_TOKEN=your_coolify_token
 TOKEN=your_telegram_bot_token
-PORT=8080
-WEBHOOK_URL=https://yourdomain.com/webhook
-ENV=dev
 DEV_IDS=123456789
 ```
 
@@ -50,8 +49,6 @@ DEV_IDS=123456789
 ```bash
 go run main.go
 ```
-
-> ✅ The bot uses long polling by default. You can switch to webhooks if needed.
 
 ---
 
@@ -75,7 +72,6 @@ All requests are authenticated via a `Bearer` token.
 ### 📦 Tech Stack
 
 * Language: Go
-* Telegram: [gotgbot](https://github.com/PaulSonOfLars/gotgbot)
 * API: [Coolify REST API](https://github.com/coollabsio/coolify)
 
 ---
@@ -84,9 +80,9 @@ All requests are authenticated via a `Bearer` token.
 
 > Future features and improvements planned:
 
-* [ ] 🔁 Paginated project list with `< Prev | 1 | 2 | 3 | Next >` buttons
-* [ ] 🧠 Cache project data to reduce API calls
-* [ ] Add support for more endpoints like Deployments, Environments, Databases and more.
+1. [ ] 🔁 Paginated project list with `< Prev | 1 | 2 | 3 | Next >` buttons
+2. [x] 🧠 Cache project data to reduce API calls
+3. [ ] Add support for more endpoints like Deployments, Environments, Databases and more.
 
 ---
 

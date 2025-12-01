@@ -5,15 +5,39 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 )
+
+// NewClient creates a new Coolify API client with optional caching
+// ttl is the cache time-to-live duration. If 0, caching is disabled.
+func NewClient(baseURL, token string, httpClient *http.Client, ttl time.Duration) *Client {
+	c := &Client{
+		BaseURL: baseURL,
+		Token:   token,
+		Client:  httpClient,
+	}
+	if ttl > 0 {
+		c.cache = newCache(ttl)
+	}
+	return c
+}
 
 type Client struct {
 	BaseURL string
 	Token   string
 	Client  *http.Client
+	cache   *cache
 }
 
 func (c *Client) ListApplications() ([]Application, error) {
+	// Check cache first
+	if c.cache != nil {
+		if cached, found := c.cache.Get("applications"); found {
+			return cached.([]Application), nil
+		}
+	}
+
+	// If not in cache or cache miss, make the API call
 	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/applications", nil)
 	if err != nil {
 		return nil, err
@@ -38,12 +62,25 @@ func (c *Client) ListApplications() ([]Application, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Cache the result if cache is enabled
+	if c.cache != nil {
+		c.cache.Set("applications", apps)
+	}
+
 	return apps, nil
 }
 
 func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
+	cacheKey := fmt.Sprintf("app_%s", uuid)
+	if c.cache != nil {
+		if cached, found := c.cache.Get(cacheKey); found {
+			app := cached.(ApplicationDetail)
+			return &app, nil
+		}
+	}
 
+	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -71,6 +108,12 @@ func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Cache the result
+	if c.cache != nil {
+		c.cache.Set(cacheKey, app)
+	}
+
 	return &app, nil
 }
 
@@ -102,12 +145,26 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 
+	// Clear relevant cache entries
+	if c.cache != nil {
+		c.cache.Delete(fmt.Sprintf("app_%s", uuid))
+		c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
+
+		c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
+		c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
+		c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
+		c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
+		c.cache.Delete("applications")
+	}
+
 	return nil
 }
 
 func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
 	url := fmt.Sprintf("%s/api/v1/applications/%s/logs?lines=-1", c.BaseURL, uuid)
-
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -127,21 +184,27 @@ func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
 		return "", errors.New("invalid token (400)")
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return "", errors.New("application not found")
+		return "", errors.New("application logs not found")
 	}
 
-	var result ApplicationLogs
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	var logs ApplicationLogs
+	err = json.NewDecoder(resp.Body).Decode(&logs)
 	if err != nil {
 		return "", err
 	}
 
-	return uploadToBatbin(result.Logs)
+	return logs.Logs, nil
 }
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/envs", c.BaseURL, uuid)
+	cacheKey := fmt.Sprintf("app_envs_%s", uuid)
+	if c.cache != nil {
+		if cached, found := c.cache.Get(cacheKey); found {
+			return cached.([]EnvironmentVariable), nil
+		}
+	}
 
+	url := fmt.Sprintf("%s/api/v1/applications/%s/envs", c.BaseURL, uuid)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -161,7 +224,7 @@ func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, e
 		return nil, errors.New("invalid token (400)")
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application not found")
+		return nil, errors.New("application environment variables not found")
 	}
 
 	var envs []EnvironmentVariable
@@ -170,12 +233,24 @@ func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, e
 		return nil, err
 	}
 
+	// Cache the result
+	if c.cache != nil {
+		c.cache.Set(cacheKey, envs)
+	}
+
 	return envs, nil
 }
 
 func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bool) (*StartDeploymentResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/start", c.BaseURL, uuid)
+	cacheKey := fmt.Sprintf("app_start_%s_%v_%v", uuid, force, instantDeploy)
+	if c.cache != nil {
+		if cached, found := c.cache.Get(cacheKey); found {
+			deployment := cached.(StartDeploymentResponse)
+			return &deployment, nil
+		}
+	}
 
+	url := fmt.Sprintf("%s/api/v1/applications/%s/start", c.BaseURL, uuid)
 	// Build query parameters
 	query := url + "?"
 	if force {
@@ -207,16 +282,29 @@ func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bo
 		return nil, errors.New("application not found")
 	}
 
-	var result StartDeploymentResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	var deployment StartDeploymentResponse
+	err = json.NewDecoder(resp.Body).Decode(&deployment)
 	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	// Cache the result
+	if c.cache != nil {
+		c.cache.Set(cacheKey, deployment)
+	}
+
+	return &deployment, nil
 }
 
 func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, error) {
+	cacheKey := fmt.Sprintf("app_stop_%s", uuid)
+	if c.cache != nil {
+		if cached, found := c.cache.Get(cacheKey); found {
+			stopResponse := cached.(StopApplicationResponse)
+			return &stopResponse, nil
+		}
+	}
+
 	url := fmt.Sprintf("%s/api/v1/applications/%s/stop", c.BaseURL, uuid)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -241,16 +329,29 @@ func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, e
 		return nil, errors.New("application not found")
 	}
 
-	var result StopApplicationResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	var stopResponse StopApplicationResponse
+	err = json.NewDecoder(resp.Body).Decode(&stopResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	// Cache the result
+	if c.cache != nil {
+		c.cache.Set(cacheKey, stopResponse)
+	}
+
+	return &stopResponse, nil
 }
 
 func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse, error) {
+	cacheKey := fmt.Sprintf("app_restart_%s", uuid)
+	if c.cache != nil {
+		if cached, found := c.cache.Get(cacheKey); found {
+			deployment := cached.(StartDeploymentResponse)
+			return &deployment, nil
+		}
+	}
+
 	url := fmt.Sprintf("%s/api/v1/applications/%s/restart", c.BaseURL, uuid)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -275,11 +376,16 @@ func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse
 		return nil, errors.New("application not found")
 	}
 
-	var result StartDeploymentResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	var deployment StartDeploymentResponse
+	err = json.NewDecoder(resp.Body).Decode(&deployment)
 	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	// Cache the result
+	if c.cache != nil {
+		c.cache.Set(cacheKey, deployment)
+	}
+
+	return &deployment, nil
 }

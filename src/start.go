@@ -2,71 +2,48 @@ package src
 
 import (
 	"fmt"
-	"html"
+	"runtime"
 	"time"
 
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/amarnathcjd/gogram/telegram"
 )
 
-func startHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	startText := fmt.Sprintf(
-		`👋 Hello <b>%s</b>!
+func startHandler(m *telegram.NewMessage) error {
+	bot := m.Client.Me()
+	response := fmt.Sprintf(`
+👋 Hello <b>%s</b>!
 
-Welcome to <b>CoolifyBot</b> — your assistant to manage Coolify projects.
+Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 
-Use the menu below to get started.`,
-		html.EscapeString(ctx.EffectiveUser.FirstName),
-	)
+Use the menu below to get started.`, m.Sender.FirstName, bot.FirstName)
 
-	startMarkup := gotgbot.InlineKeyboardMarkup{
-		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-			{
-				{Text: "📋 List Projects", CallbackData: "list_projects"},
-			},
-			{
-				{Text: "🆘 Support Chat", Url: "https://t.me/GuardxSupport"},
-				{Text: "📣 Updates", Url: "https://t.me/FallenProjects"},
-			},
-		},
-	}
-
-	opts := &gotgbot.SendMessageOpts{
-		ParseMode:          "HTML",
-		ReplyMarkup:        startMarkup,
-		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{IsDisabled: true},
-	}
-
-	if _, err := msg.Reply(b, startText, opts); err != nil {
-		return err
-	}
-
-	return ext.EndGroups
+	keyboard := telegram.NewKeyboard().
+		AddRow(telegram.Button.Data("📋 List Projects", "list_projects")).
+		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects")).
+		AddRow(telegram.Button.URL("🛠️ Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/coolify-telegram-bot"))
+	_, err := m.Reply(response, &telegram.SendOptions{
+		ReplyMarkup: keyboard.Build(),
+	})
+	return err
 }
 
-func pingCommandHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+func pingHandler(m *telegram.NewMessage) error {
 	start := time.Now()
-	msg, err := ctx.EffectiveMessage.Reply(b, "🏓 Pinging...", nil)
+	msg, err := m.Reply("⏱️ Pinging...")
 	if err != nil {
-		return fmt.Errorf("ping: failed to send initial message: %w", err)
+		return err
 	}
-
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
 
 	response := fmt.Sprintf(
 		"<b>📊 System Performance Metrics</b>\n\n"+
 			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
-			"🕒 <b>Uptime:</b> <code>%s</code>\n",
-		latency, uptime,
+			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
+			"⚙️ <b>Go Routines:</b> <code>%d</code>\n",
+		latency, uptime, runtime.NumGoroutine(),
 	)
 
-	_, _, err = msg.EditText(b, response, &gotgbot.EditMessageTextOpts{
-		ParseMode: "HTML",
-	})
-	if err != nil {
-		return fmt.Errorf("ping: failed to edit message: %w", err)
-	}
-	return nil
+	_, err = msg.Edit(response)
+	return err
 }

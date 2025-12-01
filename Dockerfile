@@ -1,17 +1,17 @@
-FROM golang:1.24.4-alpine3.22 AS builder
+FROM golang:1.25 AS builder
+
 WORKDIR /app
 
-RUN apk add --no-cache git
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-RUN go build -ldflags="-w -s" -o myapp .
+RUN CGO_ENABLED=0 GOOS=linux go build -o bot main.go
+FROM gcr.io/distroless/base-debian12
 
-FROM alpine:3.20.2
+WORKDIR /app
 
-RUN apk --no-cache add ca-certificates && \
-    apk update && apk upgrade --available && sync
+COPY --from=builder /app/bot .
 
-COPY --from=builder /app/myapp /myapp
-
-ENTRYPOINT ["/myapp"]
+CMD ["./bot"]
