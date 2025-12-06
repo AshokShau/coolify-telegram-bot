@@ -34,15 +34,18 @@ func main() {
 
 	cfg := tg.NewClientConfigBuilder(int32(apiId), config.ApiHash).
 		WithSession("coolify.dat").
-		WithLogger(tg.NewLogger(tg.LogInfo)).
+		WithLogger(tg.NewLogger(tg.DebugLevel)).
 		WithFloodHandler(handleFlood).
 		Build()
 
 	client, err := tg.NewClient(cfg)
+
 	if err != nil {
 		log.Fatalf("❌ Failed to create client: %v", err)
 	}
+	client.LogColor(true)
 	_, err = client.Conn()
+
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to Telegram: %v", err)
 	}

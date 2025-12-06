@@ -29,10 +29,13 @@ Use the menu below to get started.`, m.Sender.FirstName, bot.FirstName)
 
 func pingHandler(m *telegram.NewMessage) error {
 	start := time.Now()
+	updateLag := time.Since(time.Unix(int64(m.Date()), 0)).Milliseconds()
+
 	msg, err := m.Reply("⏱️ Pinging...")
 	if err != nil {
 		return err
 	}
+
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
 
@@ -40,8 +43,9 @@ func pingHandler(m *telegram.NewMessage) error {
 		"<b>📊 System Performance Metrics</b>\n\n"+
 			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
 			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
+			"📩 <b>Update Lag:</b> <code>%d ms</code>\n"+
 			"⚙️ <b>Go Routines:</b> <code>%d</code>\n",
-		latency, uptime, runtime.NumGoroutine(),
+		latency, uptime, updateLag, runtime.NumGoroutine(),
 	)
 
 	_, err = msg.Edit(response)
