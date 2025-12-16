@@ -139,15 +139,17 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 	tmpFile.Close()
 
 	opts := telegram.SendOptions{
-		ProgressCallback: func(pi *telegram.ProgressInfo) {
-			msg.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
-				pi.Percentage,
-				pi.CurrentSpeed/1024/1024,
-				pi.ETA,
-			))
+		Upload: &telegram.UploadOptions{
+			ProgressCallback: func(pi *telegram.ProgressInfo) {
+				msg.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
+					pi.Percentage,
+					pi.CurrentSpeed/1024/1024,
+					pi.ETA,
+				))
+			},
+			ProgressInterval: 5,
 		},
-		ProgressInterval: 5,
-		Media:            tmpFile.Name(),
+		Media: tmpFile.Name(),
 		Attributes: []telegram.DocumentAttribute{
 			&telegram.DocumentAttributeFilename{
 				FileName: tmpFile.Name(),
