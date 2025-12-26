@@ -125,7 +125,7 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	tmpFile, err := os.CreateTemp("", "logs-*.log")
+	tmpFile, err := os.CreateTemp("", "logs-*.txt")
 	if err != nil {
 		_, _ = cb.Edit("❌ Failed to create temp file: "+err.Error(), nil)
 		return err
@@ -156,7 +156,6 @@ func logsHandler(cb *telegram.CallbackQuery) error {
 			},
 		},
 		Caption:     "LOGS",
-		MimeType:    "text/x-log",
 		ReplyMarkup: keyboard.Build(),
 	}
 	_, err = msg.Edit("LOGS", &opts)
