@@ -25,11 +25,30 @@ func listProjectsHandler(cb *telegram.CallbackQuery) error {
 		_, _ = cb.Edit("😶 No applications found.")
 		return nil
 	}
+
+	page := 1
+	data := cb.DataString()
+	if strings.Contains(data, ":") {
+		parts := strings.Split(data, ":")
+		if len(parts) > 1 {
+			fmt.Sscanf(parts[1], "%d", &page)
+		}
+	}
+
+	start, end, paginationButtons := Paginate(len(apps), page, 7, "list_projects:")
 	kb := telegram.NewKeyboard()
-	for _, app := range apps {
+	for _, app := range apps[start:end] {
 		text := fmt.Sprintf("📦 %s (%s)", app.Name, app.Status)
 		data := "project_menu:" + app.UUID
 		kb.AddRow(telegram.Button.Data(text, data))
+	}
+
+	if len(paginationButtons) > 0 {
+		var row []telegram.KeyboardButton
+		for _, btn := range paginationButtons {
+			row = append(row, telegram.Button.Data(btn.Text, btn.Data))
+		}
+		kb.AddRow(row...)
 	}
 
 	_, err = cb.Edit("<b>📋 Select a project:</b>", &telegram.SendOptions{ReplyMarkup: kb.Build()})

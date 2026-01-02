@@ -80,7 +80,7 @@ All requests are authenticated via a `Bearer` token.
 
 > Future features and improvements planned:
 
-1. [ ] 🔁 Paginated project list with `< Prev | 1 | 2 | 3 | Next >` buttons
+1. [x] 🔁 Paginated project list with `< Prev | 1 | 2 | 3 | Next >` buttons
 2. [x] 🧠 Cache project data to reduce API calls
 3. [ ] Add support for more endpoints like Deployments, Environments, Databases and more.
 

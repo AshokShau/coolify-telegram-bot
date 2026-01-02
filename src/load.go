@@ -19,6 +19,7 @@ func InitFunc(c *telegram.Client) {
 
 	//	Callbacks
 	c.On("callback:list_projects", listProjectsHandler)
+	c.On("callback:list_projects:", listProjectsHandler)
 	c.On("callback:project_menu:", projectMenuHandler)
 	c.On("callback:restart:", restartHandler)
 	c.On("callback:deploy:", deployHandler)
