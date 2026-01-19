@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"coolifymanager/src/coolity"
+	"coolifymanager/src/database"
 )
 
 var (
@@ -21,6 +22,7 @@ var (
 	apiUrl   = os.Getenv("API_URL")
 	apiToken = os.Getenv("API_TOKEN")
 	devList  = os.Getenv("DEV_IDS")
+	dbURL    = os.Getenv("DB_URL")
 	devIDs   []int64
 )
 
@@ -147,6 +149,11 @@ func InitConfig() error {
 		return fmt.Errorf("error parsing DEV_IDS: %w", err)
 	}
 
+	// Initialize Database
+	if err := database.Connect(dbURL); err != nil {
+		return fmt.Errorf("error connecting to database: %w", err)
+	}
+
 	log.Println("Configuration initialized successfully")
 	return nil
 }
@@ -159,6 +166,7 @@ func reloadEnvVars() {
 	apiUrl = os.Getenv("API_URL")
 	apiToken = os.Getenv("API_TOKEN")
 	devList = os.Getenv("DEV_IDS")
+	dbURL = os.Getenv("DB_URL")
 }
 
 // validateRequiredEnv checks all required environment variables
