@@ -5,6 +5,8 @@ import (
 	"coolifymanager/src/database"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -48,11 +50,15 @@ func ScheduleTask(task database.ScheduledTask) error {
 			gocron.OneTimeJobStartDateTime(task.NextRun),
 		)
 	} else {
-		cronExpr := parseSchedule(task.Schedule)
-		jobDefinition = gocron.CronJob(
-			cronExpr,
-			false,
-		)
+		if d, ok := parseDurationSchedule(task.Schedule); ok {
+			jobDefinition = gocron.DurationJob(d)
+		} else {
+			cronExpr := parseSchedule(task.Schedule)
+			jobDefinition = gocron.CronJob(
+				cronExpr,
+				false,
+			)
+		}
 	}
 
 	job, err := s.NewJob(
@@ -79,6 +85,25 @@ func RemoveTask(id string) error {
 		}
 	}
 	return nil
+}
+
+func parseDurationSchedule(schedule string) (time.Duration, bool) {
+	if !strings.HasPrefix(schedule, "every_") {
+		return 0, false
+	}
+	s := strings.TrimPrefix(schedule, "every_")
+	if strings.HasSuffix(s, "d") {
+		val, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+		if err != nil {
+			return 0, false
+		}
+		return time.Duration(val) * 24 * time.Hour, true
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, false
+	}
+	return d, true
 }
 
 func parseSchedule(schedule string) string {

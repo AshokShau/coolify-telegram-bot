@@ -54,3 +54,31 @@ func TestRemoveTask(t *testing.T) {
 		t.Fatal("Job still exists after RemoveTask")
 	}
 }
+
+func TestParseDurationSchedule(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected time.Duration
+		ok       bool
+	}{
+		{"every_48h", 48 * time.Hour, true},
+		{"every_6h", 6 * time.Hour, true},
+		{"every_30m", 30 * time.Minute, true},
+		{"every_2d", 48 * time.Hour, true},
+		{"every_10s", 10 * time.Second, true},
+		{"every_minute", 0, false},
+		{"hourly", 0, false},
+		{"invalid", 0, false},
+		{"every_invalid", 0, false},
+	}
+
+	for _, tt := range tests {
+		d, ok := parseDurationSchedule(tt.input)
+		if ok != tt.ok {
+			t.Errorf("parseDurationSchedule(%q) ok = %v, want %v", tt.input, ok, tt.ok)
+		}
+		if ok && d != tt.expected {
+			t.Errorf("parseDurationSchedule(%q) duration = %v, want %v", tt.input, d, tt.expected)
+		}
+	}
+}
