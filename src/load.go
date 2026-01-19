@@ -26,6 +26,7 @@ func InitFunc(c *telegram.Client) error {
 	c.On("command:schedule", scheduleHandler)
 	c.On("command:jobs", jobsHandler)
 	c.On("command:unschedule", unscheduleHandler)
+	c.On("command:rmJob", unscheduleHandler)
 
 	//	Callbacks
 	c.On("callback:jobs:", jobsPaginationHandler)
