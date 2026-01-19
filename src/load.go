@@ -23,8 +23,9 @@ func InitFunc(c *telegram.Client) error {
 	// Commands
 	c.On("command:start", startHandler)
 	c.On("command:ping", pingHandler)
-	c.On("command:schedule", scheduleHandler)
 	c.On("command:jobs", jobsHandler)
+	c.On("command:job", scheduleHandler)
+	c.On("command:schedule", scheduleHandler)
 	c.On("command:unschedule", unscheduleHandler)
 	c.On("command:rmJob", unscheduleHandler)
 
