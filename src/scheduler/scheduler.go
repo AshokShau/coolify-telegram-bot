@@ -20,6 +20,7 @@ func Start() error {
 	if err != nil {
 		return fmt.Errorf("error initializing scheduler: %w", err)
 	}
+	defer func() { _ = s.Shutdown() }()
 
 	tasks, err := database.GetTasks()
 	if err != nil {
