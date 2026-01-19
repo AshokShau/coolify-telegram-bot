@@ -1,6 +1,7 @@
 package src
 
 import (
+	"fmt"
 	"time"
 
 	"coolifymanager/src/scheduler"
@@ -12,8 +13,11 @@ var (
 	startTime = time.Now()
 )
 
-func InitFunc(c *telegram.Client) {
-	scheduler.Start()
+func InitFunc(c *telegram.Client) error {
+	if err := scheduler.Start(); err != nil {
+		return fmt.Errorf("scheduler start error: %s", err.Error())
+	}
+
 	_, _ = c.UpdatesGetState()
 
 	// Commands
@@ -32,4 +36,5 @@ func InitFunc(c *telegram.Client) {
 	c.On("callback:stop:", stopHandler)
 	c.On("callback:delete:", deleteHandler)
 	c.Logger.Info("Handlers loaded successfully.")
+	return nil
 }

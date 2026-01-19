@@ -22,7 +22,7 @@ var (
 	apiUrl   = os.Getenv("API_URL")
 	apiToken = os.Getenv("API_TOKEN")
 	devList  = os.Getenv("DEV_IDS")
-	DbUrl    = os.Getenv("DB_URL")
+	dbURL    = os.Getenv("DB_URL")
 	devIDs   []int64
 )
 
@@ -150,7 +150,7 @@ func InitConfig() error {
 	}
 
 	// Initialize Database
-	if err := database.Connect(DbUrl); err != nil {
+	if err := database.Connect(dbURL); err != nil {
 		return fmt.Errorf("error connecting to database: %w", err)
 	}
 
@@ -166,7 +166,7 @@ func reloadEnvVars() {
 	apiUrl = os.Getenv("API_URL")
 	apiToken = os.Getenv("API_TOKEN")
 	devList = os.Getenv("DEV_IDS")
-	DbUrl = os.Getenv("DB_URL")
+	dbURL = os.Getenv("DB_URL")
 }
 
 // validateRequiredEnv checks all required environment variables

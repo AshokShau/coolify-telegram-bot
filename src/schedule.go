@@ -28,6 +28,7 @@ func scheduleHandler(m *telegram.NewMessage) error {
 
 	name := args[1]
 	schType := strings.ToLower(args[2])
+
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
 		_, err = m.Reply(fmt.Sprintf("❌ Error fetching projects: %v", err))
@@ -85,6 +86,7 @@ func scheduleHandler(m *telegram.NewMessage) error {
 
 	case "every_minute", "hourly", "daily", "weekly", "monthly", "yearly":
 		task.Schedule = schType
+
 	default:
 		_, err = m.Reply(fmt.Sprintf("❌ Unknown schedule type: %s", schType))
 		return err

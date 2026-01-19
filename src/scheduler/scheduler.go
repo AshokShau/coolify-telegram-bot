@@ -3,6 +3,7 @@ package scheduler
 import (
 	"coolifymanager/src/config"
 	"coolifymanager/src/database"
+	"fmt"
 	"log"
 	"time"
 
@@ -11,11 +12,11 @@ import (
 
 var s gocron.Scheduler
 
-func Start() {
+func Start() error {
 	var err error
 	s, err = gocron.NewScheduler()
 	if err != nil {
-		log.Fatalf("Error initializing scheduler: %v", err)
+		return fmt.Errorf("error initializing scheduler: %w", err)
 	}
 
 	tasks, err := database.GetTasks()
@@ -31,6 +32,7 @@ func Start() {
 
 	s.Start()
 	log.Println("Scheduler started")
+	return nil
 }
 
 func ScheduleTask(task database.ScheduledTask) error {
@@ -42,7 +44,6 @@ func ScheduleTask(task database.ScheduledTask) error {
 			_ = database.RemoveOneTimeTask(task.ID)
 			return nil
 		}
-
 		jobDefinition = gocron.OneTimeJob(
 			gocron.OneTimeJobStartDateTime(task.NextRun),
 		)

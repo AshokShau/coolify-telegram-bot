@@ -29,14 +29,15 @@ func Connect(uri string) error {
 		return fmt.Errorf("DB_URL is empty")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
 	var err error
 	client, err = mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		return err
 	}
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+
 	if err := client.Ping(ctx, nil); err != nil {
 		return err
 	}

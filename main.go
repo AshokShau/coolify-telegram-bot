@@ -55,7 +55,10 @@ func main() {
 		log.Fatalf("❌ Failed to login bot: %v", err)
 	}
 
-	src.InitFunc(client)
+	err = src.InitFunc(client)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 	client.Logger.Info("Bot is running as @" + client.Me().Username)
 	client.Idle()
 }
