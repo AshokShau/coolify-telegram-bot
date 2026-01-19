@@ -3,6 +3,8 @@ package src
 import (
 	"time"
 
+	"coolifymanager/src/scheduler"
+
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -11,11 +13,13 @@ var (
 )
 
 func InitFunc(c *telegram.Client) {
+	scheduler.Start()
 	_, _ = c.UpdatesGetState()
 
 	// Commands
 	c.On("command:start", startHandler)
 	c.On("command:ping", pingHandler)
+	c.On("command:schedule", scheduleHandler)
 
 	//	Callbacks
 	c.On("callback:list_projects", listProjectsHandler)
