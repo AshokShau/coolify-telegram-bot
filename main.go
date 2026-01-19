@@ -57,7 +57,7 @@ func main() {
 
 	err = src.InitFunc(client)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 	client.Logger.Info("Bot is running as @" + client.Me().Username)
 	client.Idle()

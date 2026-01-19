@@ -58,6 +58,7 @@ func ScheduleTask(task database.ScheduledTask) error {
 	job, err := s.NewJob(
 		jobDefinition,
 		gocron.NewTask(executeTask, task),
+		gocron.WithTags(task.ID.Hex()),
 	)
 	if err != nil {
 		return err
@@ -66,6 +67,17 @@ func ScheduleTask(task database.ScheduledTask) error {
 	//if task.OneTime {}
 
 	log.Printf("Scheduled job %s for task %v", job.ID(), task.ID)
+	return nil
+}
+
+func RemoveTask(id string) error {
+	for _, j := range s.Jobs() {
+		for _, tag := range j.Tags() {
+			if tag == id {
+				return s.RemoveJob(j.ID())
+			}
+		}
+	}
 	return nil
 }
 
