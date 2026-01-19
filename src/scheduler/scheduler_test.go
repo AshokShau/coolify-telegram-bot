@@ -73,12 +73,12 @@ func TestParseDurationSchedule(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		d, ok := parseDurationSchedule(tt.input)
+		d, ok := ParseDurationSchedule(tt.input)
 		if ok != tt.ok {
-			t.Errorf("parseDurationSchedule(%q) ok = %v, want %v", tt.input, ok, tt.ok)
+			t.Errorf("ParseDurationSchedule(%q) ok = %v, want %v", tt.input, ok, tt.ok)
 		}
 		if ok && d != tt.expected {
-			t.Errorf("parseDurationSchedule(%q) duration = %v, want %v", tt.input, d, tt.expected)
+			t.Errorf("ParseDurationSchedule(%q) duration = %v, want %v", tt.input, d, tt.expected)
 		}
 	}
 }

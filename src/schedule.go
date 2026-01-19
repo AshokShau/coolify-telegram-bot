@@ -88,6 +88,15 @@ func scheduleHandler(m *telegram.NewMessage) error {
 		task.Schedule = schType
 
 	default:
+		if _, ok := scheduler.ParseDurationSchedule(schType); ok {
+			task.Schedule = schType
+			break
+		}
+		if _, err := time.ParseDuration(schType); err == nil {
+			task.Schedule = "every_" + schType
+			break
+		}
+
 		_, err = m.Reply(fmt.Sprintf("❌ Unknown schedule type: %s", schType))
 		return err
 	}

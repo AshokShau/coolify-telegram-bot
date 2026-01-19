@@ -50,7 +50,7 @@ func ScheduleTask(task database.ScheduledTask) error {
 			gocron.OneTimeJobStartDateTime(task.NextRun),
 		)
 	} else {
-		if d, ok := parseDurationSchedule(task.Schedule); ok {
+		if d, ok := ParseDurationSchedule(task.Schedule); ok {
 			jobDefinition = gocron.DurationJob(d)
 		} else {
 			cronExpr := parseSchedule(task.Schedule)
@@ -87,7 +87,7 @@ func RemoveTask(id string) error {
 	return nil
 }
 
-func parseDurationSchedule(schedule string) (time.Duration, bool) {
+func ParseDurationSchedule(schedule string) (time.Duration, bool) {
 	if !strings.HasPrefix(schedule, "every_") {
 		return 0, false
 	}
