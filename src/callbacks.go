@@ -2,11 +2,14 @@ package src
 
 import (
 	"coolifymanager/src/config"
+	"coolifymanager/src/database"
+	"coolifymanager/src/scheduler"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/amarnathcjd/gogram/telegram"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func listProjectsHandler(cb *telegram.CallbackQuery) error {
@@ -74,6 +77,7 @@ func projectMenuHandler(cb *telegram.CallbackQuery) error {
 	keyboard := telegram.NewKeyboard().
 		AddRow(telegram.Button.Data("🔄 Restart", "restart:"+uuid), telegram.Button.Data("🚀 Deploy", "deploy:"+uuid)).
 		AddRow(telegram.Button.Data("📜 Logs", "logs:"+uuid), telegram.Button.Data("ℹ️ Status", "status:"+uuid)).
+		AddRow(telegram.Button.Data("📅 Schedule", "schedule_menu:"+uuid)).
 		AddRow(telegram.Button.Data("🛑 Stop", "stop:"+uuid), telegram.Button.Data("❌ Delete", "delete:"+uuid)).
 		AddRow(telegram.Button.Data("🔙 Back", "list_projects:"))
 
@@ -242,5 +246,105 @@ func deleteHandler(cb *telegram.CallbackQuery) error {
 	}
 
 	_, err = cb.Edit("✅ Application deleted successfully.", &telegram.SendOptions{ReplyMarkup: keyboard.Build()})
+	return err
+}
+
+func scheduleMenuHandler(cb *telegram.CallbackQuery) error {
+	if !config.IsDev(cb.SenderID) {
+		_, _ = cb.Answer("🚫 You are not authorized.", &telegram.CallbackOptions{Alert: true})
+		return nil
+	}
+	_, _ = cb.Answer("Processing...")
+	uuid := strings.TrimPrefix(cb.DataString(), "schedule_menu:")
+
+	keyboard := telegram.NewKeyboard().
+		AddRow(telegram.Button.Data("🔄 Restart", "schedule_action:restart:"+uuid)).
+		AddRow(telegram.Button.Data("🔙 Back", "project_menu:"+uuid))
+
+	_, err := cb.Edit("<b>📅 Select Action Type:</b>", &telegram.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: keyboard.Build(),
+	})
+	return err
+}
+
+func scheduleActionHandler(cb *telegram.CallbackQuery) error {
+	if !config.IsDev(cb.SenderID) {
+		_, _ = cb.Answer("🚫 You are not authorized.", &telegram.CallbackOptions{Alert: true})
+		return nil
+	}
+	_, _ = cb.Answer("Processing...")
+	// Format: schedule_action:restart:uuid
+	data := strings.TrimPrefix(cb.DataString(), "schedule_action:")
+	parts := strings.Split(data, ":")
+	if len(parts) < 2 {
+		return nil
+	}
+	actionType := parts[0]
+	uuid := parts[1]
+
+	keyboard := telegram.NewKeyboard().
+		AddRow(telegram.Button.Data("Hourly", fmt.Sprintf("schedule_create:%s:%s:every_1h", actionType, uuid))).
+		AddRow(telegram.Button.Data("Daily", fmt.Sprintf("schedule_create:%s:%s:every_1d", actionType, uuid))).
+		AddRow(telegram.Button.Data("Every 2 Days", fmt.Sprintf("schedule_create:%s:%s:every_2d", actionType, uuid))).
+		AddRow(telegram.Button.Data("Every 3 Days", fmt.Sprintf("schedule_create:%s:%s:every_3d", actionType, uuid))).
+		AddRow(telegram.Button.Data("Weekly", fmt.Sprintf("schedule_create:%s:%s:every_7d", actionType, uuid))).
+		AddRow(telegram.Button.Data("🔙 Back", "schedule_menu:"+uuid))
+
+	_, err := cb.Edit("<b>⏰ Select Schedule:</b>", &telegram.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: keyboard.Build(),
+	})
+	return err
+}
+
+func scheduleCreateHandler(cb *telegram.CallbackQuery) error {
+	if !config.IsDev(cb.SenderID) {
+		_, _ = cb.Answer("🚫 You are not authorized.", &telegram.CallbackOptions{Alert: true})
+		return nil
+	}
+	_, _ = cb.Answer("Scheduling...")
+	// Format: schedule_create:restart:uuid:every_1h
+	data := strings.TrimPrefix(cb.DataString(), "schedule_create:")
+	parts := strings.Split(data, ":")
+	if len(parts) < 3 {
+		return nil
+	}
+	actionType := parts[0]
+	uuid := parts[1]
+	schedule := parts[2]
+
+	app, err := config.Coolify.GetApplicationByUUID(uuid)
+	if err != nil {
+		_, _ = cb.Edit("❌ Failed to get application: " + err.Error())
+		return nil
+	}
+
+	task := database.ScheduledTask{
+		ID:          bson.NewObjectID(),
+		Name:        app.Name,
+		ProjectUUID: uuid,
+		Type:        actionType,
+		Schedule:    schedule,
+	}
+
+	if err := database.AddTask(task); err != nil {
+		_, _ = cb.Edit("❌ Failed to save task: " + err.Error())
+		return nil
+	}
+
+	if err := scheduler.ScheduleTask(task); err != nil {
+		_ = database.DeleteTask(task.ID.Hex())
+		_, _ = cb.Edit("❌ Failed to schedule task: " + err.Error())
+		return nil
+	}
+
+	keyboard := telegram.NewKeyboard().
+		AddRow(telegram.Button.Data("🔙 Back", "project_menu:"+uuid))
+
+	_, err = cb.Edit(fmt.Sprintf("✅ Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &telegram.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: keyboard.Build(),
+	})
 	return err
 }

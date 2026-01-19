@@ -5,6 +5,7 @@ import (
 	"coolifymanager/src/database"
 	"coolifymanager/src/scheduler"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,6 +93,14 @@ func scheduleHandler(m *telegram.NewMessage) error {
 			task.Schedule = schType
 			break
 		}
+
+		if strings.HasSuffix(schType, "d") {
+			if _, err := strconv.Atoi(strings.TrimSuffix(schType, "d")); err == nil {
+				task.Schedule = "every_" + schType
+				break
+			}
+		}
+
 		if _, err := time.ParseDuration(schType); err == nil {
 			task.Schedule = "every_" + schType
 			break
