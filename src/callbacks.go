@@ -77,7 +77,7 @@ func projectMenuHandler(cb *telegram.CallbackQuery) error {
 	keyboard := telegram.NewKeyboard().
 		AddRow(telegram.Button.Data("🔄 Restart", "restart:"+uuid), telegram.Button.Data("🚀 Deploy", "deploy:"+uuid)).
 		AddRow(telegram.Button.Data("📜 Logs", "logs:"+uuid), telegram.Button.Data("ℹ️ Status", "status:"+uuid)).
-		AddRow(telegram.Button.Data("📅 Schedule", "schedule_menu:"+uuid)).
+		AddRow(telegram.Button.Data("📅 Schedule", "sch_m:"+uuid)).
 		AddRow(telegram.Button.Data("🛑 Stop", "stop:"+uuid), telegram.Button.Data("❌ Delete", "delete:"+uuid)).
 		AddRow(telegram.Button.Data("🔙 Back", "list_projects:"))
 
@@ -255,10 +255,10 @@ func scheduleMenuHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 	_, _ = cb.Answer("Processing...")
-	uuid := strings.TrimPrefix(cb.DataString(), "schedule_menu:")
+	uuid := strings.TrimPrefix(cb.DataString(), "sch_m:")
 
 	keyboard := telegram.NewKeyboard().
-		AddRow(telegram.Button.Data("🔄 Restart", "schedule_action:restart:"+uuid)).
+		AddRow(telegram.Button.Data("🔄 Restart", "sch_a:"+uuid+":restart")).
 		AddRow(telegram.Button.Data("🔙 Back", "project_menu:"+uuid))
 
 	_, err := cb.Edit("<b>📅 Select Action Type:</b>", &telegram.SendOptions{
@@ -274,22 +274,23 @@ func scheduleActionHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 	_, _ = cb.Answer("Processing...")
-	// Format: schedule_action:restart:uuid
-	data := strings.TrimPrefix(cb.DataString(), "schedule_action:")
+	// Format: sch_a:uuid:actionType
+	data := strings.TrimPrefix(cb.DataString(), "sch_a:")
 	parts := strings.Split(data, ":")
 	if len(parts) < 2 {
 		return nil
 	}
-	actionType := parts[0]
-	uuid := parts[1]
+	uuid := parts[0]
+	actionType := parts[1]
 
+	// Common intervals
 	keyboard := telegram.NewKeyboard().
-		AddRow(telegram.Button.Data("Hourly", fmt.Sprintf("schedule_create:%s:%s:every_1h", actionType, uuid))).
-		AddRow(telegram.Button.Data("Daily", fmt.Sprintf("schedule_create:%s:%s:every_1d", actionType, uuid))).
-		AddRow(telegram.Button.Data("Every 2 Days", fmt.Sprintf("schedule_create:%s:%s:every_2d", actionType, uuid))).
-		AddRow(telegram.Button.Data("Every 3 Days", fmt.Sprintf("schedule_create:%s:%s:every_3d", actionType, uuid))).
-		AddRow(telegram.Button.Data("Weekly", fmt.Sprintf("schedule_create:%s:%s:every_7d", actionType, uuid))).
-		AddRow(telegram.Button.Data("🔙 Back", "schedule_menu:"+uuid))
+		AddRow(telegram.Button.Data("Hourly", fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType))).
+		AddRow(telegram.Button.Data("Daily", fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType))).
+		AddRow(telegram.Button.Data("Every 2 Days", fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType))).
+		AddRow(telegram.Button.Data("Every 3 Days", fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType))).
+		AddRow(telegram.Button.Data("Weekly", fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType))).
+		AddRow(telegram.Button.Data("🔙 Back", "sch_m:"+uuid))
 
 	_, err := cb.Edit("<b>⏰ Select Schedule:</b>", &telegram.SendOptions{
 		ParseMode:   "HTML",
@@ -304,14 +305,14 @@ func scheduleCreateHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 	_, _ = cb.Answer("Scheduling...")
-	// Format: schedule_create:restart:uuid:every_1h
-	data := strings.TrimPrefix(cb.DataString(), "schedule_create:")
+	// Format: sch_c:uuid:actionType:schedule
+	data := strings.TrimPrefix(cb.DataString(), "sch_c:")
 	parts := strings.Split(data, ":")
 	if len(parts) < 3 {
 		return nil
 	}
-	actionType := parts[0]
-	uuid := parts[1]
+	uuid := parts[0]
+	actionType := parts[1]
 	schedule := parts[2]
 
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
