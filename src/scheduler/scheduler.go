@@ -51,10 +51,21 @@ func ScheduleTask(task database.ScheduledTask) error {
 			gocron.OneTimeJobStartDateTime(task.NextRun),
 		)
 	} else {
-		if d, ok := ParseDurationSchedule(task.Schedule); ok {
+		isDaySchedule := false
+		if strings.HasPrefix(task.Schedule, "every_") && strings.HasSuffix(task.Schedule, "d") {
+			s := strings.TrimSuffix(strings.TrimPrefix(task.Schedule, "every_"), "d")
+			if _, err := strconv.Atoi(s); err == nil {
+				isDaySchedule = true
+			}
+		}
+
+		if isDaySchedule {
+			cronExpr := parseSchedule(task.Schedule, task.ID.Timestamp())
+			jobDefinition = gocron.CronJob(cronExpr, false)
+		} else if d, ok := ParseDurationSchedule(task.Schedule); ok {
 			jobDefinition = gocron.DurationJob(d)
 		} else {
-			cronExpr := parseSchedule(task.Schedule)
+			cronExpr := parseSchedule(task.Schedule, task.ID.Timestamp())
 			jobDefinition = gocron.CronJob(
 				cronExpr,
 				false,
@@ -107,7 +118,7 @@ func ParseDurationSchedule(schedule string) (time.Duration, bool) {
 	return d, true
 }
 
-func parseSchedule(schedule string) string {
+func parseSchedule(schedule string, t time.Time) string {
 	switch schedule {
 	case "every_minute":
 		return "* * * * *"
@@ -122,6 +133,18 @@ func parseSchedule(schedule string) string {
 	case "yearly":
 		return "0 0 1 1 *"
 	default:
+		if strings.HasPrefix(schedule, "every_") && strings.HasSuffix(schedule, "d") {
+			s := strings.TrimPrefix(schedule, "every_")
+			val, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+			if err == nil {
+				minute := t.Minute()
+				hour := t.Hour()
+				if val == 1 {
+					return fmt.Sprintf("%d %d * * *", minute, hour)
+				}
+				return fmt.Sprintf("%d %d */%d * *", minute, hour, val)
+			}
+		}
 		return schedule
 	}
 }

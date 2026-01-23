@@ -82,3 +82,28 @@ func TestParseDurationSchedule(t *testing.T) {
 		}
 	}
 }
+
+func TestParseSchedule(t *testing.T) {
+	now := time.Date(2023, 10, 27, 14, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"every_minute", "* * * * *"},
+		{"hourly", "0 * * * *"},
+		{"daily", "0 0 * * *"},
+		{"every_1d", "30 14 * * *"},
+		{"every_2d", "30 14 */2 * *"},
+		{"every_3d", "30 14 */3 * *"},
+		{"every_24h", "every_24h"},
+		{"random", "random"},
+	}
+
+	for _, tt := range tests {
+		got := parseSchedule(tt.input, now)
+		if got != tt.expected {
+			t.Errorf("parseSchedule(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
