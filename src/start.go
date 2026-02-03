@@ -5,35 +5,62 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
 )
 
-func startHandler(m *telegram.NewMessage) error {
-	bot := m.Client.Me()
+func startHandler(ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	c := ctx.Client
+
 	response := fmt.Sprintf(`
-👋 Hello <b>%s</b>!
-
 Welcome to <b>%s</b> — your assistant to manage Coolify projects.
+`, c.Me().FirstName)
 
-Use the menu below to get started.`, m.Sender.FirstName, bot.FirstName)
+	kb := &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]*gotdbot.InlineKeyboardButton{
+			{
+				{
+					Text: "📋 List Projects",
+					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+						Data: []byte("list_projects"),
+					},
+				},
+				{
+					Text: "💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ",
+					TypeField: &gotdbot.InlineKeyboardButtonTypeUrl{
+						Url: "https://t.me/FallenProjects",
+					},
+				},
+			},
+			{
+				{
+					Text: "🛠 Sᴏᴜʀᴄᴇ Cᴏᴅᴇ",
+					TypeField: &gotdbot.InlineKeyboardButtonTypeUrl{
+						Url: "https://github.com/AshokShau/coolify-telegram-bot",
+					},
+				},
+			},
+		},
+	}
 
-	keyboard := telegram.NewKeyboard().
-		AddRow(telegram.Button.Data("📋 List Projects", "list_projects")).
-		AddRow(telegram.Button.URL("💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ", "https://t.me/FallenProjects")).
-		AddRow(telegram.Button.URL("🛠️ Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/coolify-telegram-bot"))
-	_, err := m.Reply(response, &telegram.SendOptions{
-		ReplyMarkup: keyboard.Build(),
-	})
-	return err
+	_, err := msg.ReplyText(c, response, &gotdbot.SendTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
+	if err != nil {
+		return fmt.Errorf("failed to send start message: %w", err)
+	}
+	return nil
 }
 
-func pingHandler(m *telegram.NewMessage) error {
-	start := time.Now()
-	updateLag := time.Since(time.Unix(int64(m.Date()), 0)).Milliseconds()
+func pingHandler(ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	c := ctx.Client
 
-	msg, err := m.Reply("⏱️ Pinging...")
+	start := time.Now()
+	updateLag := time.Since(time.Unix(int64(msg.Date), 0)).Milliseconds()
+
+	msg, err := msg.ReplyText(c, "⏱️ Pinging...", nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send ping message: %w", err)
 	}
 
 	latency := time.Since(start).Milliseconds()
@@ -48,6 +75,9 @@ func pingHandler(m *telegram.NewMessage) error {
 		latency, uptime, updateLag, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.Edit(response)
-	return err
+	_, err = msg.EditText(c, response, &gotdbot.EditTextMessageOpts{ParseMode: "HTML"})
+	if err != nil {
+		return fmt.Errorf("failed to edit ping message: %w", err)
+	}
+	return nil
 }

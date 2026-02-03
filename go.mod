@@ -3,13 +3,13 @@ module coolifymanager
 go 1.25.0
 
 require (
-	github.com/amarnathcjd/gogram v1.7.1
-	github.com/go-co-op/gocron/v2 v2.19.0
-	go.mongodb.org/mongo-driver/v2 v2.4.1
+	github.com/AshokShau/gotdbot v0.1.0
+	github.com/go-co-op/gocron/v2 v2.19.1
+	go.mongodb.org/mongo-driver/v2 v2.5.0
 )
 
 require (
-	github.com/golang/snappy v1.0.0 // indirect
+	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect

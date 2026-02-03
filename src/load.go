@@ -2,47 +2,59 @@ package src
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"coolifymanager/src/scheduler"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
+	"github.com/AshokShau/gotdbot/ext/handlers"
+	"github.com/AshokShau/gotdbot/ext/handlers/filters"
 )
 
 var (
 	startTime = time.Now()
 )
 
-func InitFunc(c *telegram.Client) error {
+func CbPrefix(prefix string) filters.CallbackQuery {
+	return func(cq *gotdbot.UpdateNewCallbackQuery) bool {
+
+		if cq.CallbackData() == nil {
+			return false
+		}
+
+		stringData := string(cq.CallbackData())
+		return strings.HasPrefix(stringData, prefix)
+	}
+}
+
+func InitFunc(d *ext.Dispatcher) error {
 	if err := scheduler.Start(); err != nil {
 		return fmt.Errorf("scheduler start error: %s", err.Error())
 	}
 
-	_, _ = c.UpdatesGetState()
-
 	// Commands
-	c.On("command:start", startHandler)
-	c.On("command:ping", pingHandler)
-	c.On("command:jobs", jobsHandler)
-	c.On("command:job", scheduleHandler)
-	c.On("command:schedule", scheduleHandler)
-	c.On("command:unschedule", unscheduleHandler)
-	c.On("command:rmJob", unscheduleHandler)
+	d.AddHandler(handlers.NewCommand("start", startHandler))
+	d.AddHandler(handlers.NewCommand("ping", pingHandler))
+	d.AddHandler(handlers.NewCommand("jobs", jobsHandler))
+	d.AddHandler(handlers.NewCommand("job", scheduleHandler))
+	d.AddHandler(handlers.NewCommand("schedule", scheduleHandler))
+	d.AddHandler(handlers.NewCommand("unschedule", unscheduleHandler))
+	d.AddHandler(handlers.NewCommand("rmJob", unscheduleHandler))
 
 	//	Callbacks
-	c.On("callback:jobs:", jobsPaginationHandler)
-	c.On("callback:list_projects", listProjectsHandler)
-	c.On("callback:list_projects:", listProjectsHandler)
-	c.On("callback:project_menu:", projectMenuHandler)
-	c.On("callback:sch_m:", scheduleMenuHandler)
-	c.On("callback:sch_a:", scheduleActionHandler)
-	c.On("callback:sch_c:", scheduleCreateHandler)
-	c.On("callback:restart:", restartHandler)
-	c.On("callback:deploy:", deployHandler)
-	c.On("callback:logs:", logsHandler)
-	c.On("callback:status:", statusHandler)
-	c.On("callback:stop:", stopHandler)
-	c.On("callback:delete:", deleteHandler)
-	c.Logger.Info("Handlers loaded successfully.")
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("jobs:"), jobsPaginationHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("list_projects"), listProjectsHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("project_menu:"), projectMenuHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_m:"), scheduleMenuHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_a:"), scheduleActionHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_c:"), scheduleCreateHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("restart:"), restartHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("deploy:"), deployHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("logs:"), logsHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("status:"), statusHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("stop:"), stopHandler))
+	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("delete:"), deleteHandler))
 	return nil
 }

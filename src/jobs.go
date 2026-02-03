@@ -6,50 +6,56 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
 )
 
 const pageSize = 5
 
-func jobsHandler(m *telegram.NewMessage) error {
-	if !config.IsDev(m.Sender.ID) {
-		_, err := m.Reply("🚫 You are not authorized to use this command.")
+func jobsHandler(ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	c := ctx.Client
+
+	if !config.IsDev(msg.FromID()) {
+		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}
 
 	text, kb, err := buildJobsMessage(1)
 	if err != nil {
-		_, err = m.Reply("❌ " + err.Error())
+		_, err = msg.ReplyText(c, "❌ "+err.Error(), nil)
 		return err
 	}
 
-	_, err = m.Reply(text, &telegram.SendOptions{ParseMode: "HTML", ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, text, &gotdbot.SendTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
 	return err
 }
 
-func jobsPaginationHandler(cb *telegram.CallbackQuery) error {
-	if !config.IsDev(cb.SenderID) {
-		_, _ = cb.Answer("🚫 You are not authorized.", &telegram.CallbackOptions{Alert: true})
+func jobsPaginationHandler(ctx *ext.Context) error {
+	c := ctx.Client
+	cb := ctx.Update.UpdateNewCallbackQuery
+	data := cb.CallbackData()
+	if !config.IsDev(cb.SenderUserId) {
+		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 100)
 		return nil
 	}
 
 	page := 1
-	data := cb.DataString()
-	if parts := strings.Split(data, ":"); len(parts) > 1 {
+	if parts := strings.Split(string(data), ":"); len(parts) > 1 {
 		fmt.Sscanf(parts[1], "%d", &page)
 	}
 
 	text, kb, err := buildJobsMessage(page)
 	if err != nil {
-		_, _ = cb.Answer("Error: "+err.Error(), &telegram.CallbackOptions{Alert: true})
+		_ = cb.Answer(c, "Error: "+err.Error(), true, "", 100)
 		return nil
 	}
 
-	_, err = cb.Edit(text, &telegram.SendOptions{ParseMode: "HTML", ReplyMarkup: kb})
+	_, err = cb.EditMessageText(c, text, &gotdbot.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
 	return err
 }
 
-func buildJobsMessage(page int) (string, telegram.ReplyMarkup, error) {
+func buildJobsMessage(page int) (string, gotdbot.ReplyMarkup, error) {
 	tasks, err := database.GetTasks()
 	if err != nil {
 		return "", nil, fmt.Errorf("error fetching tasks: %v", err)
@@ -75,14 +81,21 @@ func buildJobsMessage(page int) (string, telegram.ReplyMarkup, error) {
 		sb.WriteString("➖➖➖➖➖➖➖➖➖➖\n")
 	}
 
-	kb := telegram.NewKeyboard()
+	kb := &gotdbot.ReplyMarkupInlineKeyboard{}
 	if len(buttons) > 0 {
-		var row []telegram.KeyboardButton
+		row := make([]*gotdbot.InlineKeyboardButton, 0, len(buttons))
+
 		for _, btn := range buttons {
-			row = append(row, telegram.Button.Data(btn.Text, btn.Data))
+			row = append(row, &gotdbot.InlineKeyboardButton{
+				Text: btn.Text,
+				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Data: []byte(btn.Data),
+				},
+			})
 		}
-		kb.AddRow(row...)
+
+		kb.Rows = append(kb.Rows, row)
 	}
 
-	return sb.String(), kb.Build(), nil
+	return sb.String(), kb, nil
 }

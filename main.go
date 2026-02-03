@@ -1,64 +1,51 @@
 package main
 
+//go:generate go run get_tdjson.go
+
 import (
 	"coolifymanager/src"
 	"coolifymanager/src/config"
 	"log"
-	_ "net/http"
-	_ "net/http/pprof"
 	"strconv"
-	"time"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
 )
-
-// handleFlood delays on flood wait errors
-func handleFlood(err error) bool {
-	if wait := tg.GetFloodWait(err); wait > 0 {
-		log.Printf("⚠️ Flood wait detected: sleeping for %ds", wait)
-		time.Sleep(time.Duration(wait) * time.Second)
-		return true
-	}
-	return false
-}
 
 func main() {
 	if err := config.InitConfig(); err != nil {
 		log.Fatalf("❌ Failed to initialize config: %v", err)
 	}
 
-	apiId, err := strconv.Atoi(config.ApiId)
+	apiID, err := strconv.Atoi(config.ApiId)
 	if err != nil {
 		log.Fatalf("❌ Invalid API_ID: %v", err)
 	}
 
-	cfg := tg.NewClientConfigBuilder(int32(apiId), config.ApiHash).
-		WithSession("coolify.dat").
-		WithLogger(tg.NewLogger(tg.InfoLevel)).
-		WithFloodHandler(handleFlood).
-		Build()
+	bot := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientConfig{LibraryPath: "./libtdjson.so.1.8.60"})
 
-	client, err := tg.NewClient(cfg)
+	// gotdbot.SetTdlibLogStreamFile("tdlib.log", 10*1024*1024, false)
+	// disable tdlib logging
+	gotdbot.SetTdlibLogStreamEmpty()
 
+	dispatcher := ext.NewDispatcher(bot)
+
+	err = src.InitFunc(dispatcher)
 	if err != nil {
-		log.Fatalf("❌ Failed to create client: %v", err)
-	}
-	client.LogColor(true)
-	_, err = client.Conn()
-
-	if err != nil {
-		log.Fatalf("❌ Failed to connect to Telegram: %v", err)
+		panic(err.Error())
 	}
 
-	err = client.LoginBot(config.Token)
-	if err != nil {
-		log.Fatalf("❌ Failed to login bot: %v", err)
+	dispatcher.Start()
+	if err = bot.Start(); err != nil {
+		panic(err.Error())
 	}
 
-	err = src.InitFunc(client)
-	if err != nil {
-		log.Fatalf("%s", err.Error())
+	me := bot.Me()
+	username := ""
+	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
+		username = me.Usernames.ActiveUsernames[0]
 	}
-	client.Logger.Info("Bot is running as @" + client.Me().Username)
-	client.Idle()
+
+	bot.Logger.Info("✅ Bot started as @" + username)
+	bot.Idle()
 }
