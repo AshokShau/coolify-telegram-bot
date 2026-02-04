@@ -2,32 +2,18 @@ package src
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"coolifymanager/src/scheduler"
 
-	"github.com/AshokShau/gotdbot"
 	"github.com/AshokShau/gotdbot/ext"
 	"github.com/AshokShau/gotdbot/ext/handlers"
-	"github.com/AshokShau/gotdbot/ext/handlers/filters"
+	"github.com/AshokShau/gotdbot/ext/handlers/filters/callbackquery"
 )
 
 var (
 	startTime = time.Now()
 )
-
-func CbPrefix(prefix string) filters.CallbackQuery {
-	return func(cq *gotdbot.UpdateNewCallbackQuery) bool {
-
-		if cq.CallbackData() == nil {
-			return false
-		}
-
-		stringData := string(cq.CallbackData())
-		return strings.HasPrefix(stringData, prefix)
-	}
-}
 
 func InitFunc(d *ext.Dispatcher) error {
 	if err := scheduler.Start(); err != nil {
@@ -44,17 +30,17 @@ func InitFunc(d *ext.Dispatcher) error {
 	d.AddHandler(handlers.NewCommand("rmJob", unscheduleHandler))
 
 	//	Callbacks
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("jobs:"), jobsPaginationHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("list_projects"), listProjectsHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("project_menu:"), projectMenuHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_m:"), scheduleMenuHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_a:"), scheduleActionHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("sch_c:"), scheduleCreateHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("restart:"), restartHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("deploy:"), deployHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("logs:"), logsHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("status:"), statusHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("stop:"), stopHandler))
-	d.AddHandler(handlers.NewCallbackQuery(CbPrefix("delete:"), deleteHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("jobs:"), jobsPaginationHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("list_projects"), listProjectsHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("project_menu:"), projectMenuHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("sch_m:"), scheduleMenuHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("sch_a:"), scheduleActionHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("sch_c:"), scheduleCreateHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("restart:"), restartHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("deploy:"), deployHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("logs:"), logsHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("status:"), statusHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("stop:"), stopHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("delete:"), deleteHandler))
 	return nil
 }

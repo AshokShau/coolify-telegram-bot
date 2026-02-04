@@ -3,7 +3,7 @@ module coolifymanager
 go 1.25.0
 
 require (
-	github.com/AshokShau/gotdbot v0.1.0
+	github.com/AshokShau/gotdbot v0.2.0
 	github.com/go-co-op/gocron/v2 v2.19.1
 	go.mongodb.org/mongo-driver/v2 v2.5.0
 )
