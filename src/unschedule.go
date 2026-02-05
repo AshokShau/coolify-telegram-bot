@@ -7,32 +7,35 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
 )
 
-func unscheduleHandler(m *telegram.NewMessage) error {
-	if !config.IsDev(m.Sender.ID) {
-		_, err := m.Reply("🚫 You are not authorized to use this command.")
+func unscheduleHandler(ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	c := ctx.Client
+
+	if !config.IsDev(msg.FromID()) {
+		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}
 
-	args := strings.Fields(m.Text())
+	args := strings.Fields(msg.Text())
 	if len(args) < 2 {
-		_, err := m.Reply("usage: /unschedule <task_id>")
+		_, err := msg.ReplyText(c, "usage: /unschedule <task_id>", nil)
 		return err
 	}
-
 	taskID := args[1]
 
 	if err := scheduler.RemoveTask(taskID); err != nil {
-		_, err = m.Reply(fmt.Sprintf("⚠️ Warning: Could not remove task from scheduler (might not be running): %v", err))
+		_, err = msg.ReplyText(c, fmt.Sprintf("⚠️ Warning: Could not remove task from scheduler (might not be running): %v", err), nil)
 	}
-	
+
 	if err := database.DeleteTask(taskID); err != nil {
-		_, err = m.Reply(fmt.Sprintf("❌ Error deleting task from database: %v", err))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Error deleting task from database: %v", err), nil)
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf("✅ Task <code>%s</code> removed successfully.", taskID))
+	_, err := msg.ReplyText(c, fmt.Sprintf("✅ Task <code>%s</code> removed successfully.", taskID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
 	return err
 }

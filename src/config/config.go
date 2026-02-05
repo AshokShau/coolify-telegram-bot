@@ -15,15 +15,16 @@ import (
 )
 
 var (
-	Coolify  *coolify.Client
-	Token    = os.Getenv("TOKEN")
-	ApiId    = os.Getenv("API_ID")
-	ApiHash  = os.Getenv("API_HASH")
-	apiUrl   = os.Getenv("API_URL")
-	apiToken = os.Getenv("API_TOKEN")
-	devList  = os.Getenv("DEV_IDS")
-	dbURL    = os.Getenv("DB_URL")
-	devIDs   []int64
+	Coolify          *coolify.Client
+	Token            = os.Getenv("TOKEN")
+	ApiId            = os.Getenv("API_ID")
+	ApiHash          = os.Getenv("API_HASH")
+	apiUrl           = os.Getenv("API_URL")
+	apiToken         = os.Getenv("API_TOKEN")
+	devList          = os.Getenv("DEV_IDS")
+	dbURL            = os.Getenv("DB_URL")
+	TdlibLibraryPath = os.Getenv("TDLIB_LIBRARY_PATH")
+	devIDs           []int64
 )
 
 // loadEnvFile loads environment variables from a file
@@ -167,6 +168,7 @@ func reloadEnvVars() {
 	apiToken = os.Getenv("API_TOKEN")
 	devList = os.Getenv("DEV_IDS")
 	dbURL = os.Getenv("DB_URL")
+	TdlibLibraryPath = os.Getenv("TDLIB_LIBRARY_PATH")
 }
 
 // validateRequiredEnv checks all required environment variables

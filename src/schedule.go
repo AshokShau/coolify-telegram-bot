@@ -9,21 +9,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/ext"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func scheduleHandler(m *telegram.NewMessage) error {
-	if !config.IsDev(m.Sender.ID) {
-		_, err := m.Reply("🚫 You are not authorized to use this command.")
+func scheduleHandler(ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	c := ctx.Client
+
+	if !config.IsDev(msg.FromID()) {
+		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}
 
-	args := strings.Fields(m.Text())
+	args := strings.Fields(msg.Text())
 	if len(args) < 3 {
-		_, err := m.Reply("usage: /schedule <name> <schedule_type> [expression/time]\n" +
-			"Types: one_time, every_minute, hourly, daily, weekly, monthly, yearly, cron\n" +
-			"For one_time, use RFC3339 format (e.g., 2023-10-27T10:00:00Z)")
+		_, err := msg.ReplyText(c, "usage: /schedule <name> <schedule_type> [expression/time]\n"+
+			"Types: one_time, every_minute, hourly, daily, weekly, monthly, yearly, cron\n"+
+			"For one_time, use RFC3339 format (e.g., 2023-10-27T10:00:00Z)", &gotdbot.SendTextMessageOpts{ParseMode: ""})
 		return err
 	}
 
@@ -32,7 +36,7 @@ func scheduleHandler(m *telegram.NewMessage) error {
 
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
-		_, err = m.Reply(fmt.Sprintf("❌ Error fetching projects: %v", err))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Error fetching projects: %v", err), nil)
 		return err
 	}
 
@@ -45,7 +49,7 @@ func scheduleHandler(m *telegram.NewMessage) error {
 	}
 
 	if uuid == "" {
-		_, err = m.Reply(fmt.Sprintf("❌ Project not found with name: %s", name))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Project not found with name: %s", name), nil)
 		return err
 	}
 
@@ -59,26 +63,28 @@ func scheduleHandler(m *telegram.NewMessage) error {
 	switch schType {
 	case "one_time":
 		if len(args) < 4 {
-			_, err = m.Reply("❌ Please provide a time for one-time schedule.")
+			_, err = msg.ReplyText(c, "❌ Please provide a time for one-time schedule.", nil)
 			return err
 		}
 		timeStr := args[3]
 		t, err := time.Parse(time.RFC3339, timeStr)
 		if err != nil {
-			_, err = m.Reply("❌ Invalid time format. Use RFC3339 (e.g., 2023-10-27T10:00:00Z)")
+			_, err = msg.ReplyText(c, "❌ Invalid time format. Use RFC3339 (e.g., 2023-10-27T10:00:00Z)", nil)
 			return err
 		}
+
 		if t.Before(time.Now()) {
-			_, err = m.Reply("❌ Time must be in the future.")
+			_, err = msg.ReplyText(c, "❌ Time must be in the future.", nil)
 			return err
 		}
+
 		task.OneTime = true
 		task.NextRun = t
 		task.Schedule = "one_time"
 
 	case "cron":
 		if len(args) < 4 {
-			_, err = m.Reply("❌ Please provide a cron expression.")
+			_, err = msg.ReplyText(c, "❌ Please provide a cron expression.", nil)
 			return err
 		}
 
@@ -106,21 +112,21 @@ func scheduleHandler(m *telegram.NewMessage) error {
 			break
 		}
 
-		_, err = m.Reply(fmt.Sprintf("❌ Unknown schedule type: %s", schType))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Unknown schedule type: %s", schType), nil)
 		return err
 	}
 
 	if err := database.AddTask(task); err != nil {
-		_, err = m.Reply(fmt.Sprintf("❌ Error saving task: %v", err))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Error saving task: %v", err), nil)
 		return err
 	}
 
 	if err := scheduler.ScheduleTask(task); err != nil {
 		_ = database.DeleteTask(task.ID.Hex())
-		_, err = m.Reply(fmt.Sprintf("❌ Error scheduling task: %v", err))
+		_, err = msg.ReplyText(c, fmt.Sprintf("❌ Error scheduling task: %v", err), nil)
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ Task scheduled successfully!\nID: %s", task.ID.Hex()))
+	_, err = msg.ReplyText(c, fmt.Sprintf("✅ Task scheduled successfully!\nID: %s", task.ID.Hex()), nil)
 	return err
 }
