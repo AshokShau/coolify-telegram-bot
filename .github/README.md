@@ -2,7 +2,7 @@
 
 A modern Telegram bot to **manage your Coolify applications** via buttons — no CLI, no dashboards.
 
-Built with [gogram](https://github.com/AmarnathCJD/gogram), powered by Coolify's REST API.
+Built with [gotdbot](https://github.com/AshokShau/gotdbot), powered by Coolify's REST API.
 
 ---
 
