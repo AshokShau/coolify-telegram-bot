@@ -34,8 +34,7 @@ func listProjectsHandler(ctx *ext.Context) error {
 	}
 
 	page := 1
-	dataBytes := cb.CallbackData()
-	cbData := string(dataBytes)
+	cbData := cb.DataString()
 	if strings.Contains(cbData, ":") {
 		parts := strings.Split(cbData, ":")
 		if len(parts) > 1 {
@@ -90,7 +89,8 @@ func projectMenuHandler(ctx *ext.Context) error {
 
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "project_menu:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "project_menu:")
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
 	if err != nil {
 		_, err = cb.EditMessageText(c, "❌ Failed to load project: "+err.Error(), nil)
@@ -178,7 +178,8 @@ func restartHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "restart:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "restart:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]*gotdbot.InlineKeyboardButton{
@@ -214,7 +215,8 @@ func deployHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "deploy:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "deploy:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]*gotdbot.InlineKeyboardButton{
@@ -306,7 +308,8 @@ func statusHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "status:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "status:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]*gotdbot.InlineKeyboardButton{
@@ -342,7 +345,8 @@ func stopHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "stop:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "stop:")
 
 	res, err := config.Coolify.StopApplicationByUUID(uuid)
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
@@ -377,7 +381,8 @@ func deleteHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "delete:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "delete:")
 
 	err := config.Coolify.DeleteApplicationByUUID(uuid)
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
@@ -412,7 +417,8 @@ func scheduleMenuHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "sch_m:")
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "sch_m:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]*gotdbot.InlineKeyboardButton{
@@ -453,7 +459,8 @@ func scheduleActionHandler(ctx *ext.Context) error {
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
 	// Format: sch_a:uuid:actionType
-	data := strings.TrimPrefix(string(cb.CallbackData()), "sch_a:")
+	cbData := cb.DataString()
+	data := strings.TrimPrefix(cbData, "sch_a:")
 	parts := strings.Split(data, ":")
 	if len(parts) < 2 {
 		return nil
@@ -533,7 +540,7 @@ func scheduleCreateHandler(ctx *ext.Context) error {
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
 	// Format: sch_c:uuid:actionType:schedule
-	data := strings.TrimPrefix(string(cb.CallbackData()), "sch_c:")
+	data := strings.TrimPrefix(cb.DataString(), "sch_c:")
 
 	parts := strings.Split(data, ":")
 	if len(parts) < 3 {

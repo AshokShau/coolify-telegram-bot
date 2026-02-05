@@ -1,6 +1,6 @@
 package main
 
-//go:generate go run get_tdjson.go
+//go:generate go run github.com/AshokShau/gotdbot/scripts/tools@latest
 
 import (
 	"coolifymanager/src"

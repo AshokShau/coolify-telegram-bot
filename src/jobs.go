@@ -34,14 +34,14 @@ func jobsHandler(ctx *ext.Context) error {
 func jobsPaginationHandler(ctx *ext.Context) error {
 	c := ctx.Client
 	cb := ctx.Update.UpdateNewCallbackQuery
-	data := cb.CallbackData()
+	data := cb.DataString()
 	if !config.IsDev(cb.SenderUserId) {
 		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 100)
 		return nil
 	}
 
 	page := 1
-	if parts := strings.Split(string(data), ":"); len(parts) > 1 {
+	if parts := strings.Split(data, ":"); len(parts) > 1 {
 		fmt.Sscanf(parts[1], "%d", &page)
 	}
 
