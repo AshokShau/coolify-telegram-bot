@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/AshokShau/gotdbot"
 	"github.com/AshokShau/gotdbot/ext"
 )
 
@@ -35,6 +36,6 @@ func unscheduleHandler(ctx *ext.Context) error {
 		return err
 	}
 
-	_, err := msg.ReplyText(c, fmt.Sprintf("✅ Task <code>%s</code> removed successfully.", taskID), nil)
+	_, err := msg.ReplyText(c, fmt.Sprintf("✅ Task <code>%s</code> removed successfully.", taskID), &gotdbot.SendTextMessageOpts{ParseMode: "HTML"})
 	return err
 }
