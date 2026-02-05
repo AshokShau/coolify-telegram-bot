@@ -252,7 +252,7 @@ func logsHandler(ctx *ext.Context) error {
 	}
 	_ = cb.Answer(c, "Processing...", false, "", 0)
 
-	uuid := strings.TrimPrefix(string(cb.CallbackData()), "logs:")
+	uuid := strings.TrimPrefix(cb.DataString(), "logs:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]*gotdbot.InlineKeyboardButton{
