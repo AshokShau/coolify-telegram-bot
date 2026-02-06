@@ -49,7 +49,7 @@ func listProjectsHandler(ctx *ext.Context) error {
 		text := fmt.Sprintf("📦 %s (%s)", app.Name, app.Status)
 		data := "project_menu:" + app.UUID
 
-		kb.Rows = append(kb.Rows, []*gotdbot.InlineKeyboardButton{
+		kb.Rows = append(kb.Rows, []gotdbot.InlineKeyboardButton{
 			{
 				Text: text,
 				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
@@ -60,10 +60,10 @@ func listProjectsHandler(ctx *ext.Context) error {
 	}
 
 	if len(paginationButtons) > 0 {
-		row := make([]*gotdbot.InlineKeyboardButton, 0, len(paginationButtons))
+		row := make([]gotdbot.InlineKeyboardButton, 0, len(paginationButtons))
 
 		for _, btn := range paginationButtons {
-			row = append(row, &gotdbot.InlineKeyboardButton{
+			row = append(row, gotdbot.InlineKeyboardButton{
 				Text: btn.Text,
 				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
 					Data: []byte(btn.Data),
@@ -99,7 +99,7 @@ func projectMenuHandler(ctx *ext.Context) error {
 
 	text := fmt.Sprintf("<b>📦 %s</b>\n🌐 %s\n📄 Status: <code>%s</code>", app.Name, app.FQDN, app.Status)
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔄 Restart",
@@ -182,7 +182,7 @@ func restartHandler(ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cbData, "restart:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -219,7 +219,7 @@ func deployHandler(ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cbData, "deploy:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -255,7 +255,7 @@ func logsHandler(ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cb.DataString(), "logs:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -312,7 +312,7 @@ func statusHandler(ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cbData, "status:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -350,7 +350,7 @@ func stopHandler(ctx *ext.Context) error {
 
 	res, err := config.Coolify.StopApplicationByUUID(uuid)
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -386,7 +386,7 @@ func deleteHandler(ctx *ext.Context) error {
 
 	err := config.Coolify.DeleteApplicationByUUID(uuid)
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",
@@ -421,7 +421,7 @@ func scheduleMenuHandler(ctx *ext.Context) error {
 	uuid := strings.TrimPrefix(cbData, "sch_m:")
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔄 Restart",
@@ -470,7 +470,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 
 	// Common intervals
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "Hourly",
@@ -576,7 +576,7 @@ func scheduleCreateHandler(ctx *ext.Context) error {
 	}
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "🔙 Back",

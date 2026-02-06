@@ -18,7 +18,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 `, c.Me().FirstName)
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
-		Rows: [][]*gotdbot.InlineKeyboardButton{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "📋 List Projects",

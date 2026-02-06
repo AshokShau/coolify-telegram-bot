@@ -83,10 +83,10 @@ func buildJobsMessage(page int) (string, gotdbot.ReplyMarkup, error) {
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{}
 	if len(buttons) > 0 {
-		row := make([]*gotdbot.InlineKeyboardButton, 0, len(buttons))
+		row := make([]gotdbot.InlineKeyboardButton, 0, len(buttons))
 
 		for _, btn := range buttons {
-			row = append(row, &gotdbot.InlineKeyboardButton{
+			row = append(row, gotdbot.InlineKeyboardButton{
 				Text: btn.Text,
 				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
 					Data: []byte(btn.Data),
