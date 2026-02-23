@@ -18,6 +18,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     zlib1g \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/bot .

@@ -16,7 +16,15 @@ var s gocron.Scheduler
 
 func Start() error {
 	var err error
-	s, err = gocron.NewScheduler()
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Printf("Error loading time zone: %v, falling back to Local", err)
+		loc = time.Local
+	}
+
+	s, err = gocron.NewScheduler(
+		gocron.WithLocation(loc),
+	)
 	if err != nil {
 		return fmt.Errorf("error initializing scheduler: %w", err)
 	}
@@ -65,7 +73,7 @@ func ScheduleTask(task database.ScheduledTask) error {
 			}
 		}
 
-		if isDaySchedule {
+		if isDaySchedule || strings.Contains(task.Schedule, "_at_") {
 			cronExpr := parseSchedule(task.Schedule, task.ID.Timestamp())
 			jobDefinition = gocron.CronJob(cronExpr, false)
 		} else if d, ok := ParseDurationSchedule(task.Schedule); ok {
@@ -87,8 +95,6 @@ func ScheduleTask(task database.ScheduledTask) error {
 	if err != nil {
 		return err
 	}
-
-	//if task.OneTime {}
 
 	log.Printf("Scheduled job %s for task %v", job.ID(), task.ID)
 	return nil
@@ -125,6 +131,36 @@ func ParseDurationSchedule(schedule string) (time.Duration, bool) {
 }
 
 func parseSchedule(schedule string, t time.Time) string {
+	if strings.Contains(schedule, "_at_") {
+		parts := strings.Split(schedule, "_at_")
+		if len(parts) == 2 {
+			base := parts[0]
+			timeStr := parts[1]
+			timeParts := strings.Split(timeStr, ":")
+			if len(timeParts) == 2 {
+				hour, errH := strconv.Atoi(timeParts[0])
+				minute, errM := strconv.Atoi(timeParts[1])
+				if errH == nil && errM == nil {
+					switch base {
+					case "daily":
+						return fmt.Sprintf("%d %d * * *", minute, hour)
+					default:
+						if strings.HasPrefix(base, "every_") && strings.HasSuffix(base, "d") {
+							s := strings.TrimPrefix(base, "every_")
+							val, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+							if err == nil {
+								if val == 1 {
+									return fmt.Sprintf("%d %d * * *", minute, hour)
+								}
+								return fmt.Sprintf("%d %d */%d * *", minute, hour, val)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	switch schedule {
 	case "every_minute":
 		return "* * * * *"

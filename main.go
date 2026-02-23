@@ -7,6 +7,8 @@ import (
 	"coolifymanager/src/config"
 	"log"
 	"strconv"
+	"time"
+	_ "time/tzdata"
 
 	"github.com/AshokShau/gotdbot"
 	"github.com/AshokShau/gotdbot/ext"
@@ -15,6 +17,14 @@ import (
 func main() {
 	if err := config.InitConfig(); err != nil {
 		log.Fatalf("❌ Failed to initialize config: %v", err)
+	}
+
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Printf("⚠️ Failed to load Asia/Kolkata time zone: %v. Using UTC.", err)
+	} else {
+		time.Local = loc
+		log.Println("✅ Time zone set to Asia/Kolkata")
 	}
 
 	apiID, err := strconv.Atoi(config.ApiId)

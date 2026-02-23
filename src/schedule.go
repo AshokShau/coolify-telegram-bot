@@ -91,10 +91,53 @@ func scheduleHandler(ctx *ext.Context) error {
 		cronExpr := strings.Join(args[3:], " ")
 		task.Schedule = cronExpr
 
-	case "every_minute", "hourly", "daily", "weekly", "monthly", "yearly":
+	case "every_minute", "hourly", "weekly", "monthly", "yearly":
 		task.Schedule = schType
 
+	case "daily":
+		if len(args) >= 4 {
+			// Check if time is provided for daily schedule
+			timeStr := args[3]
+			if _, err := time.Parse("15:04", timeStr); err == nil {
+				task.Schedule = "daily_at_" + timeStr
+			} else {
+				_, err = msg.ReplyText(c, "❌ Invalid time format. Use HH:MM (e.g., 06:00)", nil)
+				return err
+			}
+		} else {
+			task.Schedule = "daily"
+		}
+
 	default:
+		if strings.Contains(schType, "_at_") {
+			parts := strings.Split(schType, "_at_")
+			if len(parts) == 2 {
+				base := parts[0]
+				timeStr := parts[1]
+				if _, err := time.Parse("15:04", timeStr); err != nil {
+					_, err = msg.ReplyText(c, "❌ Invalid time format in schedule. Use HH:MM (e.g., every_1d_at_06:00)", nil)
+					return err
+				}
+
+				// Validate base
+				if base == "daily" {
+					task.Schedule = schType
+					break
+				} else if strings.HasPrefix(base, "every_") && strings.HasSuffix(base, "d") {
+					if _, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(base, "every_"), "d")); err == nil {
+						task.Schedule = schType
+						break
+					}
+				} else if strings.HasSuffix(base, "d") {
+					// Handle shorthand 1d_at_06:00 -> every_1d_at_06:00
+					if _, err := strconv.Atoi(strings.TrimSuffix(base, "d")); err == nil {
+						task.Schedule = "every_" + base + "_at_" + timeStr
+						break
+					}
+				}
+			}
+		}
+
 		if _, ok := scheduler.ParseDurationSchedule(schType); ok {
 			task.Schedule = schType
 			break
@@ -102,6 +145,14 @@ func scheduleHandler(ctx *ext.Context) error {
 
 		if strings.HasSuffix(schType, "d") {
 			if _, err := strconv.Atoi(strings.TrimSuffix(schType, "d")); err == nil {
+				// Check for optional time argument
+				if len(args) >= 4 {
+					timeStr := args[3]
+					if _, err := time.Parse("15:04", timeStr); err == nil {
+						task.Schedule = "every_" + schType + "_at_" + timeStr
+						break
+					}
+				}
 				task.Schedule = "every_" + schType
 				break
 			}

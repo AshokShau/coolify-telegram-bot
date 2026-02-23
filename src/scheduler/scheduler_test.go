@@ -98,6 +98,11 @@ func TestParseSchedule(t *testing.T) {
 		{"every_3d", "30 14 */3 * *"},
 		{"every_24h", "every_24h"},
 		{"random", "random"},
+		{"daily_at_06:00", "0 6 * * *"},
+		{"daily_at_18:30", "30 18 * * *"},
+		{"every_1d_at_06:00", "0 6 * * *"},
+		{"every_2d_at_06:00", "0 6 */2 * *"},
+		{"every_3d_at_15:45", "45 15 */3 * *"},
 	}
 
 	for _, tt := range tests {
