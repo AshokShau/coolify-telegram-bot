@@ -27,7 +27,7 @@ func main() {
 		tdlibLibraryPath = "./libtdjson.so.1.8.60"
 	}
 
-	bot := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientConfig{LibraryPath: "./libtdjson.so.1.8.60"})
+	bot := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientConfig{LibraryPath: "./libtdjson.so.1.8.61"})
 
 	// gotdbot.SetTdlibLogStreamFile("tdlib.log", 10*1024*1024, false)
 	// disable tdlib logging
