@@ -47,6 +47,10 @@ DEV_IDS=123456789
 #### 3. Run the bot
 
 ```bash
+go generate
+```
+
+```bash
 go run main.go
 ```
 
