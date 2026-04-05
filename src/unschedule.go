@@ -8,14 +8,12 @@ import (
 	"strings"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 )
 
-func unscheduleHandler(ctx *ext.Context) error {
+func unscheduleHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	msg := ctx.EffectiveMessage
-	c := ctx.Client
 
-	if !config.IsDev(msg.FromID()) {
+	if !config.IsDev(msg.SenderID()) {
 		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}

@@ -7,16 +7,14 @@ import (
 	"strings"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 )
 
 const pageSize = 5
 
-func jobsHandler(ctx *ext.Context) error {
+func jobsHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	msg := ctx.EffectiveMessage
-	c := ctx.Client
 
-	if !config.IsDev(msg.FromID()) {
+	if !config.IsDev(msg.SenderID()) {
 		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}
@@ -31,12 +29,11 @@ func jobsHandler(ctx *ext.Context) error {
 	return err
 }
 
-func jobsPaginationHandler(ctx *ext.Context) error {
-	c := ctx.Client
+func jobsPaginationHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
 	data := cb.DataString()
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 100)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
 
@@ -47,7 +44,7 @@ func jobsPaginationHandler(ctx *ext.Context) error {
 
 	text, kb, err := buildJobsMessage(page)
 	if err != nil {
-		_ = cb.Answer(c, "Error: "+err.Error(), true, "", 100)
+		_ = cb.Answer(c, 0, true, "❌ "+err.Error(), "")
 		return nil
 	}
 
@@ -88,7 +85,7 @@ func buildJobsMessage(page int) (string, gotdbot.ReplyMarkup, error) {
 		for _, btn := range buttons {
 			row = append(row, gotdbot.InlineKeyboardButton{
 				Text: btn.Text,
-				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+				Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 					Data: []byte(btn.Data),
 				},
 			})

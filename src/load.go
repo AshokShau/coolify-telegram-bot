@@ -6,16 +6,16 @@ import (
 
 	"coolifymanager/src/scheduler"
 
-	"github.com/AshokShau/gotdbot/ext"
-	"github.com/AshokShau/gotdbot/ext/handlers"
-	"github.com/AshokShau/gotdbot/ext/handlers/filters/callbackquery"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/handlers"
+	"github.com/AshokShau/gotdbot/handlers/filters/callbackquery"
 )
 
 var (
 	startTime = time.Now()
 )
 
-func InitFunc(d *ext.Dispatcher) error {
+func InitFunc(d *gotdbot.Dispatcher) error {
 	if err := scheduler.Start(); err != nil {
 		return fmt.Errorf("scheduler start error: %s", err.Error())
 	}

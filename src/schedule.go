@@ -10,15 +10,13 @@ import (
 	"time"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func scheduleHandler(ctx *ext.Context) error {
+func scheduleHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	msg := ctx.EffectiveMessage
-	c := ctx.Client
 
-	if !config.IsDev(msg.FromID()) {
+	if !config.IsDev(msg.SenderID()) {
 		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
 		return err
 	}

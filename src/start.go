@@ -6,29 +6,27 @@ import (
 	"time"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 )
 
-func startHandler(ctx *ext.Context) error {
+func startHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	msg := ctx.EffectiveMessage
-	c := ctx.Client
 
 	response := fmt.Sprintf(`
 Welcome to <b>%s</b> — your assistant to manage Coolify projects.
-`, c.Me().FirstName)
+`, c.Me.FirstName)
 
 	kb := &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
 				{
 					Text: "📋 List Projects",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("list_projects"),
 					},
 				},
 				{
 					Text: "💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeUrl{
+					Type: &gotdbot.InlineKeyboardButtonTypeUrl{
 						Url: "https://t.me/FallenProjects",
 					},
 				},
@@ -36,7 +34,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 			{
 				{
 					Text: "🛠 Sᴏᴜʀᴄᴇ Cᴏᴅᴇ",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeUrl{
+					Type: &gotdbot.InlineKeyboardButtonTypeUrl{
 						Url: "https://github.com/AshokShau/coolify-telegram-bot",
 					},
 				},
@@ -51,9 +49,8 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 	return nil
 }
 
-func pingHandler(ctx *ext.Context) error {
+func pingHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	msg := ctx.EffectiveMessage
-	c := ctx.Client
 
 	start := time.Now()
 	updateLag := time.Since(time.Unix(int64(msg.Date), 0)).Milliseconds()

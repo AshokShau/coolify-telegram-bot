@@ -11,7 +11,6 @@ import (
 	_ "time/tzdata"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 )
 
 func main() {
@@ -34,28 +33,23 @@ func main() {
 
 	tdlibLibraryPath := config.TdlibLibraryPath
 	if tdlibLibraryPath == "" {
-		tdlibLibraryPath = "./libtdjson.so.1.8.60"
+		tdlibLibraryPath = "./libtdjson.so.1.8.63"
 	}
 
-	bot := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientConfig{LibraryPath: "./libtdjson.so.1.8.61"})
-
-	// gotdbot.SetTdlibLogStreamFile("tdlib.log", 10*1024*1024, false)
-	// disable tdlib logging
-	gotdbot.SetTdlibLogStreamEmpty()
-
-	dispatcher := ext.NewDispatcher(bot)
-
-	err = src.InitFunc(dispatcher)
+	bot, err := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientOpts{LibraryPath: tdlibLibraryPath})
+	if err != nil {
+		log.Fatalf("❌ Failed to create bot client: %v", err)
+	}
+	err = src.InitFunc(bot.Dispatcher)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	dispatcher.Start()
 	if err = bot.Start(); err != nil {
 		panic(err.Error())
 	}
 
-	me := bot.Me()
+	me := bot.Me
 	username := ""
 	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
 		username = me.Usernames.ActiveUsernames[0]

@@ -9,19 +9,18 @@ import (
 	"strings"
 
 	"github.com/AshokShau/gotdbot"
-	"github.com/AshokShau/gotdbot/ext"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func listProjectsHandler(ctx *ext.Context) error {
-	c := ctx.Client
+func listProjectsHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 100)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
 		_, _ = cb.EditMessageText(c, "Failed to fetch projects:"+err.Error(), nil)
@@ -52,7 +51,7 @@ func listProjectsHandler(ctx *ext.Context) error {
 		kb.Rows = append(kb.Rows, []gotdbot.InlineKeyboardButton{
 			{
 				Text: text,
-				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+				Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 					Data: []byte(data),
 				},
 			},
@@ -65,7 +64,7 @@ func listProjectsHandler(ctx *ext.Context) error {
 		for _, btn := range paginationButtons {
 			row = append(row, gotdbot.InlineKeyboardButton{
 				Text: btn.Text,
-				TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+				Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 					Data: []byte(btn.Data),
 				},
 			})
@@ -78,16 +77,15 @@ func listProjectsHandler(ctx *ext.Context) error {
 	return err
 }
 
-func projectMenuHandler(ctx *ext.Context) error {
+func projectMenuHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
 
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "project_menu:")
@@ -103,13 +101,13 @@ func projectMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔄 Restart",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("restart:" + uuid),
 					},
 				},
 				{
 					Text: "🚀 Deploy",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("deploy:" + uuid),
 					},
 				},
@@ -117,13 +115,13 @@ func projectMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "📜 Logs",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("logs:" + uuid),
 					},
 				},
 				{
 					Text: "ℹ️ Status",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("status:" + uuid),
 					},
 				},
@@ -131,7 +129,7 @@ func projectMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "📅 Schedule",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("sch_m:" + uuid),
 					},
 				},
@@ -139,13 +137,13 @@ func projectMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🛑 Stop",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("stop:" + uuid),
 					},
 				},
 				{
 					Text: "❌ Delete",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("delete:" + uuid),
 					},
 				},
@@ -153,7 +151,7 @@ func projectMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("list_projects:"),
 					},
 				},
@@ -169,14 +167,13 @@ func projectMenuHandler(ctx *ext.Context) error {
 	return err
 }
 
-func restartHandler(ctx *ext.Context) error {
+func restartHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "restart:")
@@ -186,7 +183,7 @@ func restartHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -205,15 +202,15 @@ func restartHandler(ctx *ext.Context) error {
 	return err
 }
 
-func deployHandler(ctx *ext.Context) error {
+func deployHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "deploy:")
@@ -223,7 +220,7 @@ func deployHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -242,15 +239,14 @@ func deployHandler(ctx *ext.Context) error {
 	return err
 }
 
-func logsHandler(ctx *ext.Context) error {
+func logsHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	uuid := strings.TrimPrefix(cb.DataString(), "logs:")
 
@@ -259,7 +255,7 @@ func logsHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -289,7 +285,7 @@ func logsHandler(ctx *ext.Context) error {
 	tmpFile.Close()
 
 	file := tmpFile.Name()
-	_, err = c.EditMessageMedia(cb.ChatId, cb.MessageId, &gotdbot.InputMessageDocument{Document: gotdbot.GetInputFile(file)}, &gotdbot.EditMessageMediaOpts{ReplyMarkup: kb})
+	_, err = c.EditMessageMedia(cb.ChatId, &gotdbot.InputMessageDocument{Document: gotdbot.GetInputFile(file)}, cb.MessageId, &gotdbot.EditMessageMediaOpts{ReplyMarkup: kb})
 	if err != nil {
 		_, _ = cb.EditMessageText(c, "❌ Failed to send logs file: "+err.Error(), &gotdbot.EditTextMessageOpts{ReplyMarkup: kb})
 		return fmt.Errorf("edit message media error: %s", err.Error())
@@ -298,15 +294,14 @@ func logsHandler(ctx *ext.Context) error {
 	return nil
 }
 
-func statusHandler(ctx *ext.Context) error {
+func statusHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "status:")
@@ -316,7 +311,7 @@ func statusHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -335,15 +330,14 @@ func statusHandler(ctx *ext.Context) error {
 	return err
 }
 
-func stopHandler(ctx *ext.Context) error {
+func stopHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "stop:")
@@ -354,7 +348,7 @@ func stopHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -371,15 +365,14 @@ func stopHandler(ctx *ext.Context) error {
 	return err
 }
 
-func deleteHandler(ctx *ext.Context) error {
+func deleteHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "delete:")
@@ -390,7 +383,7 @@ func deleteHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -407,15 +400,14 @@ func deleteHandler(ctx *ext.Context) error {
 	return err
 }
 
-func scheduleMenuHandler(ctx *ext.Context) error {
+func scheduleMenuHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "sch_m:")
@@ -425,7 +417,7 @@ func scheduleMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔄 Restart",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("sch_a:" + uuid + ":restart"),
 					},
 				},
@@ -433,7 +425,7 @@ func scheduleMenuHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
@@ -448,15 +440,14 @@ func scheduleMenuHandler(ctx *ext.Context) error {
 	return err
 }
 
-func scheduleActionHandler(ctx *ext.Context) error {
+func scheduleActionHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	// Format: sch_a:uuid:actionType
 	cbData := cb.DataString()
@@ -474,7 +465,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "Hourly",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType)),
 					},
 				},
@@ -482,7 +473,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "Daily",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType)),
 					},
 				},
@@ -490,7 +481,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "Every 2 Days",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType)),
 					},
 				},
@@ -498,7 +489,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "Every 3 Days",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType)),
 					},
 				},
@@ -506,7 +497,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "Weekly",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType)),
 					},
 				},
@@ -514,7 +505,7 @@ func scheduleActionHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("sch_m:" + uuid),
 					},
 				},
@@ -529,15 +520,14 @@ func scheduleActionHandler(ctx *ext.Context) error {
 	return err
 }
 
-func scheduleCreateHandler(ctx *ext.Context) error {
+func scheduleCreateHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	cb := ctx.Update.UpdateNewCallbackQuery
-	c := ctx.Client
 
 	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, "🚫 You are not authorized.", true, "", 0)
+		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, "Processing...", false, "", 0)
+	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	// Format: sch_c:uuid:actionType:schedule
 	data := strings.TrimPrefix(cb.DataString(), "sch_c:")
@@ -580,7 +570,7 @@ func scheduleCreateHandler(ctx *ext.Context) error {
 			{
 				{
 					Text: "🔙 Back",
-					TypeField: &gotdbot.InlineKeyboardButtonTypeCallback{
+					Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 						Data: []byte("project_menu:" + uuid),
 					},
 				},
