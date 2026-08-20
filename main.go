@@ -20,19 +20,19 @@ func main() {
 
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
-		log.Printf("⚠Failed to load Asia/Kolkata time zone: %v. Using UTC.", err)
+		log.Printf("Failed to load Asia/Kolkata time zone: %v. Using UTC.", err)
 	} else {
 		time.Local = loc
 	}
 
 	apiID, err := strconv.Atoi(config.ApiId)
 	if err != nil {
-		log.Fatalf("❌ Invalid API_ID: %v", err)
+		log.Fatalf("Invalid API_ID: %v", err)
 	}
 
 	tdlibLibraryPath := config.TdlibLibraryPath
 	if tdlibLibraryPath == "" {
-		tdlibLibraryPath = "./libtdjson.so.1.8.64"
+		tdlibLibraryPath = "./libtdjson.so.1.8.66"
 	}
 
 	bot, err := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientOpts{
@@ -41,7 +41,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("❌ Failed to create bot client: %v", err)
+		log.Fatalf("Failed to create bot client: %v", err)
 	}
 	err = src.InitFunc(bot)
 	if err != nil {

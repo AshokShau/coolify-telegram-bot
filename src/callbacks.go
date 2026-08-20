@@ -276,7 +276,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	tmpFile.Close()
 
 	file := tmpFile.Name()
-	_, err = c.EditMessageMedia(cb.ChatId, &td.InputMessageDocument{Document: td.GetInputFile(file)}, cb.MessageId, &td.EditMessageMediaOpts{ReplyMarkup: kb})
+	_, err = c.EditMessageMedia(cb.ChatId, &td.InputMessageDocument{Document: &td.InputDocument{Document: td.InputFileLocal{Path: file}}}, cb.MessageId, &td.EditMessageMediaOpts{ReplyMarkup: kb})
 	if err != nil {
 		_, _ = cb.EditMessageText(c, "❌ Failed to send logs file: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return fmt.Errorf("edit message media error: %s", err.Error())
