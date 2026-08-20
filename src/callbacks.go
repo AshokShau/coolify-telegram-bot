@@ -7,10 +7,48 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	td "github.com/AshokShau/gotdbot"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+type DeleteConfirmStatus int
+
+const (
+	DeleteConfirmFirstClick DeleteConfirmStatus = iota
+	DeleteConfirmTooSoon
+	DeleteConfirmExpired
+	DeleteConfirmProceed
+)
+
+var deletePendingMap sync.Map // map[string]time.Time
+
+func checkDeleteConfirmation(userID int64, uuid string, now time.Time) DeleteConfirmStatus {
+	key := fmt.Sprintf("%d:%s", userID, uuid)
+	val, loaded := deletePendingMap.Load(key)
+
+	if !loaded {
+		deletePendingMap.Store(key, now)
+		return DeleteConfirmFirstClick
+	}
+
+	firstClick := val.(time.Time)
+	elapsed := now.Sub(firstClick)
+
+	if elapsed < 2*time.Second {
+		return DeleteConfirmTooSoon
+	}
+
+	if elapsed > 30*time.Second {
+		deletePendingMap.Store(key, now)
+		return DeleteConfirmExpired
+	}
+
+	deletePendingMap.Delete(key)
+	return DeleteConfirmProceed
+}
 
 func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	if !config.IsDev(cb.SenderUserId) {
@@ -357,10 +395,24 @@ func deleteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
 		return nil
 	}
-	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "delete:")
+
+	status := checkDeleteConfirmation(cb.SenderUserId, uuid, time.Now())
+	switch status {
+	case DeleteConfirmFirstClick:
+		_ = cb.Answer(c, 0, true, "⚠️ Warning: Are you sure you want to delete this project? Click Delete again after 2 seconds to confirm.", "")
+		return nil
+	case DeleteConfirmTooSoon:
+		_ = cb.Answer(c, 0, true, "⚠️ Please wait 2 seconds before clicking Delete again.", "")
+		return nil
+	case DeleteConfirmExpired:
+		_ = cb.Answer(c, 0, true, "⚠️ Confirmation timed out. Click Delete again after 2 seconds to confirm.", "")
+		return nil
+	case DeleteConfirmProceed:
+		_ = cb.Answer(c, 0, false, "Processing...", "")
+	}
 
 	err := config.Coolify.DeleteApplicationByUUID(uuid)
 	kb := &td.ReplyMarkupInlineKeyboard{
