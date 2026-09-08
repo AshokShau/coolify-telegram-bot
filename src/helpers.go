@@ -4,106 +4,90 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-// replyMsg replies to a message, automatically applying ReceiverUserID for group ephemeral responses
-func replyMsg(c *td.Client, msg *td.Message, text string, opts *td.SendTextMessageOpts) (*td.Message, error) {
-	if opts == nil {
-		opts = &td.SendTextMessageOpts{}
+func makeCallbackButton(text, data string) td.InlineKeyboardButton {
+	return td.InlineKeyboardButton{
+		Text: text,
+		Type: &td.InlineKeyboardButtonTypeCallback{
+			Data: []byte(data),
+		},
 	}
-	if opts.ParseMode == "" {
-		opts.ParseMode = "HTML"
+}
+
+func buildPaginationButtonsRow(buttons []PageButton) []td.InlineKeyboardButton {
+	if len(buttons) == 0 {
+		return nil
 	}
+	row := make([]td.InlineKeyboardButton, 0, len(buttons))
+	for _, btn := range buttons {
+		row = append(row, makeCallbackButton(btn.Text, btn.Data))
+	}
+	return row
+}
+
+func makeBackButton(data string) *td.ReplyMarkupInlineKeyboard {
+	return &td.ReplyMarkupInlineKeyboard{
+		Rows: [][]td.InlineKeyboardButton{
+			{
+				makeCallbackButton("Back", data),
+			},
+		},
+	}
+}
+
+func sendOpts(msg *td.Message, replyMarkup td.ReplyMarkup) *td.SendTextMessageOpts {
+	opts := &td.SendTextMessageOpts{ReplyMarkup: replyMarkup}
 	if !msg.IsPrivate() {
 		opts.ReceiverUserID = msg.SenderID()
 	}
-	return msg.ReplyText(c, text, opts)
+	return opts
 }
 
-// replyDoc replies with a document, applying ReceiverUserID if in a group
-func replyDoc(c *td.Client, msg *td.Message, path string, caption string, replyMarkup td.ReplyMarkup) (*td.Message, error) {
+func docOpts(msg *td.Message, caption string, replyMarkup td.ReplyMarkup) *td.SendDocumentOpts {
 	opts := &td.SendDocumentOpts{
 		Caption:     caption,
-		ParseMode:   "HTML",
 		ReplyMarkup: replyMarkup,
 	}
 	if !msg.IsPrivate() {
 		opts.ReceiverUserID = msg.SenderID()
 	}
-	return msg.ReplyDocument(c, td.InputFileLocal{Path: path}, opts)
+	return opts
 }
 
-// editMsg edits an existing message, supporting both normal and ephemeral message edits
-func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessageOpts) (*td.Message, error) {
+func makeEphemeralOpts(opts *td.EditTextMessageOpts) *td.EditEphemeralMessageTextOpts {
 	if opts == nil {
-		opts = &td.EditTextMessageOpts{}
+		return &td.EditEphemeralMessageTextOpts{}
 	}
-	if opts.ParseMode == "" {
-		opts.ParseMode = "HTML"
+	return &td.EditEphemeralMessageTextOpts{
+		ParseMode:             opts.ParseMode,
+		DisableWebPagePreview: opts.DisableWebPagePreview,
+		Url:                   opts.Url,
+		ForceSmallMedia:       opts.ForceSmallMedia,
+		ForceLargeMedia:       opts.ForceLargeMedia,
+		ShowAboveText:         opts.ShowAboveText,
+		ReplyMarkup:           opts.ReplyMarkup,
 	}
+}
 
+func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessageOpts) (*td.Message, error) {
 	if !msg.IsPrivate() {
-		eOpts := &td.EditEphemeralMessageTextOpts{
-			ParseMode:             opts.ParseMode,
-			DisableWebPagePreview: opts.DisableWebPagePreview,
-			Url:                   opts.Url,
-			ForceSmallMedia:       opts.ForceSmallMedia,
-			ForceLargeMedia:       opts.ForceLargeMedia,
-			ShowAboveText:         opts.ShowAboveText,
-			ReplyMarkup:           opts.ReplyMarkup,
-		}
-
-		err := c.EditEphemeralMessageText(msg.ChatId, msg.EphemeralMessageId, msg.SenderID(), text, eOpts)
-		if err == nil {
+		eOpts := makeEphemeralOpts(opts)
+		if err := c.EditEphemeralMessageText(msg.ChatId, msg.EphemeralMessageId, msg.SenderID(), text, eOpts); err == nil {
 			return msg, nil
 		}
 	}
-
 	return msg.EditText(c, text, opts)
 }
 
-// editCallback edits the message associated with a callback query
 func editCallback(c *td.Client, cb *td.UpdateNewCallbackQuery, text string, opts *td.EditTextMessageOpts) error {
-	if opts == nil {
-		opts = &td.EditTextMessageOpts{}
-	}
-	if opts.ParseMode == "" {
-		opts.ParseMode = "HTML"
-	}
-
 	if !cb.IsPrivate() {
 		msg, err := cb.GetMessage(c)
 		if err != nil {
 			return err
 		}
-
-		eOpts := &td.EditEphemeralMessageTextOpts{
-			ParseMode:             opts.ParseMode,
-			DisableWebPagePreview: opts.DisableWebPagePreview,
-			Url:                   opts.Url,
-			ForceSmallMedia:       opts.ForceSmallMedia,
-			ForceLargeMedia:       opts.ForceLargeMedia,
-			ShowAboveText:         opts.ShowAboveText,
-			ReplyMarkup:           opts.ReplyMarkup,
-		}
-		
+		eOpts := makeEphemeralOpts(opts)
 		return c.EditEphemeralMessageText(cb.ChatId, msg.EphemeralMessageId, cb.SenderUserId, text, eOpts)
 	}
 
 	_, err := cb.EditMessageText(c, text, opts)
 	return err
-}
-
-// makeBackButton creates a standard inline keyboard with a single Back button
-func makeBackButton(data string) *td.ReplyMarkupInlineKeyboard {
-	return &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(data),
-					},
-				},
-			},
-		},
-	}
 }

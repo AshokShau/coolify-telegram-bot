@@ -14,12 +14,7 @@ func startHandler(c *td.Client, msg *td.Message) error {
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "List Projects",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("list_projects"),
-					},
-				},
+				makeCallbackButton("List Projects", "list_projects"),
 				{
 					Text: "Fallen Projects",
 					Type: &td.InlineKeyboardButtonTypeUrl{
@@ -38,7 +33,7 @@ func startHandler(c *td.Client, msg *td.Message) error {
 		},
 	}
 
-	_, err := replyMsg(c, msg, response, &td.SendTextMessageOpts{ReplyMarkup: kb})
+	_, err := msg.ReplyText(c, response, sendOpts(msg, kb))
 	if err != nil {
 		return fmt.Errorf("failed to send start message: %w", err)
 	}
@@ -63,6 +58,6 @@ func pingHandler(c *td.Client, msg *td.Message) error {
 		latency, uptime, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.EditText(c, response, &td.EditTextMessageOpts{ParseMode: "HTML"})
+	_, err = msg.EditText(c, response, nil)
 	return err
 }

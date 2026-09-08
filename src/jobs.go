@@ -13,11 +13,11 @@ const pageSize = 5
 func jobsHandler(c *td.Client, msg *td.Message) error {
 	text, kb, err := buildJobsMessage(1)
 	if err != nil {
-		_, err = replyMsg(c, msg, err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
-	_, err = replyMsg(c, msg, text, &td.SendTextMessageOpts{ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, text, sendOpts(msg, kb))
 	return err
 }
 
@@ -64,18 +64,7 @@ func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
 	}
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
-	if len(buttons) > 0 {
-		row := make([]td.InlineKeyboardButton, 0, len(buttons))
-
-		for _, btn := range buttons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
-
+	if row := buildPaginationButtonsRow(buttons); len(row) > 0 {
 		kb.Rows = append(kb.Rows, row)
 	}
 

@@ -64,21 +64,11 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		kb := &td.ReplyMarkupInlineKeyboard{}
 		for _, proj := range projects {
 			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-				{
-					Text: proj.Name,
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("proj:" + proj.UUID),
-					},
-				},
+				makeCallbackButton(proj.Name, "proj:"+proj.UUID),
 			})
 		}
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-			{
-				Text: "All Applications",
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte("list_projects:"),
-				},
-			},
+			makeCallbackButton("All Applications", "list_projects:"),
 		})
 		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 	}
@@ -107,35 +97,13 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := &td.ReplyMarkupInlineKeyboard{}
 	for _, app := range apps[start:end] {
 		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
-		data := "project_menu:" + app.UUID
-
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-			{
-				Text: text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(data),
-				},
-			},
+			makeCallbackButton(text, "project_menu:"+app.UUID),
 		})
 	}
 
-	row := make([]td.InlineKeyboardButton, 0)
-	if len(paginationButtons) > 0 {
-		for _, btn := range paginationButtons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
-	}
-	row = append(row, td.InlineKeyboardButton{
-		Text: "Projects",
-		Type: &td.InlineKeyboardButtonTypeCallback{
-			Data: []byte("list_projects:projects"),
-		},
-	})
+	row := buildPaginationButtonsRow(paginationButtons)
+	row = append(row, makeCallbackButton("Projects", "list_projects:projects"))
 	kb.Rows = append(kb.Rows, row)
 
 	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
@@ -182,44 +150,18 @@ func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := &td.ReplyMarkupInlineKeyboard{}
 	for _, app := range projectApps[start:end] {
 		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
-		data := "project_menu:" + app.UUID
-
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-			{
-				Text: text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(data),
-				},
-			},
+			makeCallbackButton(text, "project_menu:"+app.UUID),
 		})
 	}
 
-	row := make([]td.InlineKeyboardButton, 0)
-	if len(paginationButtons) > 0 {
-		for _, btn := range paginationButtons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
+	if row := buildPaginationButtonsRow(paginationButtons); len(row) > 0 {
+		kb.Rows = append(kb.Rows, row)
 	}
-	kb.Rows = append(kb.Rows, row)
 
 	kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-		{
-			Text: "Back",
-			Type: &td.InlineKeyboardButtonTypeCallback{
-				Data: []byte("list_projects:projects"),
-			},
-		},
-		{
-			Text: "All Applications",
-			Type: &td.InlineKeyboardButtonTypeCallback{
-				Data: []byte("list_projects:"),
-			},
-		},
+		makeCallbackButton("Back", "list_projects:projects"),
+		makeCallbackButton("All Applications", "list_projects:"),
 	})
 
 	return editCallback(c, cb, fmt.Sprintf("<b>Applications in %s:</b>", projectName), &td.EditTextMessageOpts{ReplyMarkup: kb})
@@ -245,74 +187,24 @@ func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "Restart",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("restart:" + uuid),
-					},
-				},
-				{
-					Text: "Deploy",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("deploy:" + uuid),
-					},
-				},
+				makeCallbackButton("Restart", "restart:"+uuid),
+				makeCallbackButton("Deploy", "deploy:"+uuid),
 			},
 			{
-				{
-					Text: "Logs",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("logs:" + uuid),
-					},
-				},
-				{
-					Text: "Status",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("status:" + uuid),
-					},
-				},
+				makeCallbackButton("Logs", "logs:"+uuid),
+				makeCallbackButton("Status", "status:"+uuid),
 			},
 			{
-				{
-					Text: "ENV",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("env:" + uuid),
-					},
-				},
-				{
-					Text: "Schedule",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_m:" + uuid),
-					},
-				},
+				makeCallbackButton("ENV", "env:"+uuid),
+				makeCallbackButton("Schedule", "sch_m:"+uuid),
 			},
 			{
-				{
-					Text: "Stop",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("stop:" + uuid),
-					},
-				},
-				{
-					Text: "Delete",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("delete:" + uuid),
-					},
-				},
+				makeCallbackButton("Stop", "stop:"+uuid),
+				makeCallbackButton("Delete", "delete:"+uuid),
 			},
 			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(backData),
-					},
-				},
-				{
-					Text: "Projects",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("list_projects:projects"),
-					},
-				},
+				makeCallbackButton("Back", backData),
+				makeCallbackButton("Projects", "list_projects:projects"),
 			},
 		},
 	}
@@ -443,7 +335,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	msg, _ := cb.GetMessage(c)
 	if msg != nil {
 		caption := fmt.Sprintf("<b>%s logs</b>", appName)
-		_, err = replyDoc(c, msg, tmpFile.Name(), caption, kb)
+		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, kb))
 		if err == nil {
 			_ = editCallback(c, cb, fmt.Sprintf("Logs for <b>%s</b> sent as document.", appName), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		}
@@ -523,20 +415,10 @@ func scheduleMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "Restart",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_a:" + uuid + ":restart"),
-					},
-				},
+				makeCallbackButton("Restart", "sch_a:"+uuid+":restart"),
 			},
 			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
+				makeCallbackButton("Back", "project_menu:"+uuid),
 			},
 		},
 	}
@@ -558,54 +440,12 @@ func scheduleActionHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Hourly",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Daily",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Every 2 Days",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Every 3 Days",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Weekly",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_m:" + uuid),
-					},
-				},
-			},
+			{makeCallbackButton("Hourly", fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType))},
+			{makeCallbackButton("Daily", fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType))},
+			{makeCallbackButton("Every 2 Days", fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType))},
+			{makeCallbackButton("Every 3 Days", fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType))},
+			{makeCallbackButton("Weekly", fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType))},
+			{makeCallbackButton("Back", "sch_m:"+uuid)},
 		},
 	}
 

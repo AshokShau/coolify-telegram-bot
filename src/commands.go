@@ -26,15 +26,36 @@ func findApplication(query string) (*coolify.Application, error) {
 	return nil, fmt.Errorf("application '%s' not found", query)
 }
 
+func promptAppSelection(c *td.Client, msg *td.Message, actionPrefix, title, usage string) error {
+	apps, err := config.Coolify.ListApplications()
+	if err != nil || len(apps) == 0 {
+		_, err = msg.ReplyText(c, usage, sendOpts(msg, nil))
+		return err
+	}
+
+	kb := &td.ReplyMarkupInlineKeyboard{}
+	for _, app := range apps {
+		label := app.Name
+		if actionPrefix == "deploy:" {
+			label = "Deploy " + app.Name
+		}
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			makeCallbackButton(label, actionPrefix+app.UUID),
+		})
+	}
+	_, err = msg.ReplyText(c, title, sendOpts(msg, kb))
+	return err
+}
+
 func appsHandler(c *td.Client, msg *td.Message) error {
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
-		_, err = replyMsg(c, msg, "Failed to fetch projects: "+err.Error(), nil)
+		_, err = msg.ReplyText(c, "Failed to fetch projects: "+err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	if len(apps) == 0 {
-		_, err = replyMsg(c, msg, "No applications found.", nil)
+		_, err = msg.ReplyText(c, "No applications found.", sendOpts(msg, nil))
 		return err
 	}
 
@@ -44,73 +65,40 @@ func appsHandler(c *td.Client, msg *td.Message) error {
 	for _, app := range apps[start:end] {
 		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
 		data := "project_menu:" + app.UUID
-
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-			{
-				Text: text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(data),
-				},
-			},
+			makeCallbackButton(text, data),
 		})
 	}
 
-	if len(paginationButtons) > 0 {
-		row := make([]td.InlineKeyboardButton, 0, len(paginationButtons))
-		for _, btn := range paginationButtons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
+	if row := buildPaginationButtonsRow(paginationButtons); len(row) > 0 {
 		kb.Rows = append(kb.Rows, row)
 	}
 
-	_, err = replyMsg(c, msg, "<b>Applications List:</b>", &td.SendTextMessageOpts{ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, "<b>Applications List:</b>", sendOpts(msg, kb))
 	return err
 }
 
 func envCmdHandler(c *td.Client, msg *td.Message) error {
 	args := strings.Fields(msg.Text())
 	if len(args) < 2 {
-		apps, err := config.Coolify.ListApplications()
-		if err != nil || len(apps) == 0 {
-			_, err = replyMsg(c, msg, "Usage: /env <app_name_or_uuid>", nil)
-			return err
-		}
-
-		kb := &td.ReplyMarkupInlineKeyboard{}
-		for _, app := range apps {
-			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-				{
-					Text: app.Name,
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("env:" + app.UUID),
-					},
-				},
-			})
-		}
-		_, err = replyMsg(c, msg, "<b>Select an application to view ENV:</b>", &td.SendTextMessageOpts{ReplyMarkup: kb})
-		return err
+		return promptAppSelection(c, msg, "env:", "<b>Select an application to view ENV:</b>", "Usage: /env <app_name_or_uuid>")
 	}
 
 	target := args[1]
 	app, err := findApplication(target)
 	if err != nil {
-		_, err = replyMsg(c, msg, err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	envs, err := config.Coolify.GetApplicationEnvsByUUID(app.UUID)
 	if err != nil {
-		_, err = replyMsg(c, msg, fmt.Sprintf("Failed to fetch environment variables for %s: %v", app.Name, err), nil)
+		_, err = msg.ReplyText(c, fmt.Sprintf("Failed to fetch environment variables for %s: %v", app.Name, err), sendOpts(msg, nil))
 		return err
 	}
 
 	if len(envs) == 0 {
-		_, err = replyMsg(c, msg, fmt.Sprintf("No environment variables found for <b>%s</b>.", app.Name), nil)
+		_, err = msg.ReplyText(c, fmt.Sprintf("No environment variables found for <b>%s</b>.", app.Name), sendOpts(msg, nil))
 		return err
 	}
 
@@ -125,44 +113,26 @@ func envCmdHandler(c *td.Client, msg *td.Message) error {
 	}
 
 	kb := makeBackButton("project_menu:" + app.UUID)
-	_, err = replyMsg(c, msg, sb.String(), &td.SendTextMessageOpts{ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, sb.String(), sendOpts(msg, kb))
 	return err
 }
 
 func logsCmdHandler(c *td.Client, msg *td.Message) error {
 	args := strings.Fields(msg.Text())
 	if len(args) < 2 {
-		apps, err := config.Coolify.ListApplications()
-		if err != nil || len(apps) == 0 {
-			_, err = replyMsg(c, msg, "Usage: /logs <app_name_or_uuid>", nil)
-			return err
-		}
-
-		kb := &td.ReplyMarkupInlineKeyboard{}
-		for _, app := range apps {
-			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-				{
-					Text: app.Name,
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("logs:" + app.UUID),
-					},
-				},
-			})
-		}
-		_, err = replyMsg(c, msg, "<b>Select an application to view logs:</b>", &td.SendTextMessageOpts{ReplyMarkup: kb})
-		return err
+		return promptAppSelection(c, msg, "logs:", "<b>Select an application to view logs:</b>", "Usage: /logs <app_name_or_uuid>")
 	}
 
 	target := args[1]
 	app, err := findApplication(target)
 	if err != nil {
-		_, err = replyMsg(c, msg, err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	logsData, err := config.Coolify.GetApplicationLogsByUUID(app.UUID)
 	if err != nil {
-		_, err = replyMsg(c, msg, fmt.Sprintf("Failed to fetch logs for %s: %v", app.Name, err), nil)
+		_, err = msg.ReplyText(c, fmt.Sprintf("Failed to fetch logs for %s: %v", app.Name, err), sendOpts(msg, nil))
 		return err
 	}
 
@@ -170,13 +140,13 @@ func logsCmdHandler(c *td.Client, msg *td.Message) error {
 
 	if len(logsData) <= 3000 {
 		text := fmt.Sprintf("<b>%s logs:</b>\n\n<code>%s</code>", app.Name, logsData)
-		_, err = replyMsg(c, msg, text, &td.SendTextMessageOpts{ReplyMarkup: kb})
+		_, err = msg.ReplyText(c, text, sendOpts(msg, kb))
 		return err
 	}
 
 	tmpFile, err := os.CreateTemp("", "logs-*.txt")
 	if err != nil {
-		_, err = replyMsg(c, msg, "Failed to create temp logs file: "+err.Error(), nil)
+		_, err = msg.ReplyText(c, "Failed to create temp logs file: "+err.Error(), sendOpts(msg, nil))
 		return err
 	}
 	defer os.Remove(tmpFile.Name())
@@ -185,7 +155,7 @@ func logsCmdHandler(c *td.Client, msg *td.Message) error {
 	tmpFile.Close()
 
 	caption := fmt.Sprintf("<b>%s logs</b>", app.Name)
-	_, err = replyDoc(c, msg, tmpFile.Name(), caption, kb)
+	_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, kb))
 	return err
 }
 
@@ -198,13 +168,13 @@ func statusCmdHandler(c *td.Client, msg *td.Message) error {
 	target := args[1]
 	app, err := findApplication(target)
 	if err != nil {
-		_, err = replyMsg(c, msg, err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	detail, err := config.Coolify.GetApplicationByUUID(app.UUID)
 	if err != nil {
-		_, err = replyMsg(c, msg, fmt.Sprintf("Failed to fetch status for %s: %v", app.Name, err), nil)
+		_, err = msg.ReplyText(c, fmt.Sprintf("Failed to fetch status for %s: %v", app.Name, err), sendOpts(msg, nil))
 		return err
 	}
 
@@ -219,75 +189,43 @@ func statusCmdHandler(c *td.Client, msg *td.Message) error {
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "Restart",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("restart:" + detail.UUID),
-					},
-				},
-				{
-					Text: "Deploy",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("deploy:" + detail.UUID),
-					},
-				},
+				makeCallbackButton("Restart", "restart:"+detail.UUID),
+				makeCallbackButton("Deploy", "deploy:"+detail.UUID),
 			},
 			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + detail.UUID),
-					},
-				},
+				makeCallbackButton("Back", "project_menu:"+detail.UUID),
 			},
 		},
 	}
 
-	_, err = replyMsg(c, msg, text, &td.SendTextMessageOpts{ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, text, sendOpts(msg, kb))
 	return err
 }
 
 func deployCmdHandler(c *td.Client, msg *td.Message) error {
 	args := strings.Fields(msg.Text())
 	if len(args) < 2 {
-		apps, err := config.Coolify.ListApplications()
-		if err != nil || len(apps) == 0 {
-			_, err = replyMsg(c, msg, "Usage: /deploy <app_name_or_uuid>", nil)
-			return err
-		}
-
-		kb := &td.ReplyMarkupInlineKeyboard{}
-		for _, app := range apps {
-			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-				{
-					Text: fmt.Sprintf("Deploy %s", app.Name),
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("deploy:" + app.UUID),
-					},
-				},
-			})
-		}
-		_, err = replyMsg(c, msg, "<b>Select an application to deploy:</b>", &td.SendTextMessageOpts{ReplyMarkup: kb})
-		return err
+		return promptAppSelection(c, msg, "deploy:", "<b>Select an application to deploy:</b>", "Usage: /deploy <app_name_or_uuid>")
 	}
 
 	target := args[1]
 	app, err := findApplication(target)
 	if err != nil {
-		_, err = replyMsg(c, msg, err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
-	loadingMsg, _ := replyMsg(c, msg, fmt.Sprintf("Deploying <b>%s</b>...", app.Name), nil)
+	loadingMsg, _ := msg.ReplyText(c, fmt.Sprintf("Deploying <b>%s</b>...", app.Name), sendOpts(msg, nil))
 
 	res, err := config.Coolify.StartApplicationDeployment(app.UUID, false, false)
 	kb := makeBackButton("project_menu:" + app.UUID)
 
 	if err != nil {
+		text := fmt.Sprintf("Deployment failed for %s: %v", app.Name, err)
 		if loadingMsg != nil {
-			_, _ = editMsg(c, loadingMsg, fmt.Sprintf("Deployment failed for %s: %v", app.Name, err), &td.EditTextMessageOpts{ReplyMarkup: kb})
+			_, _ = editMsg(c, loadingMsg, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 		} else {
-			_, _ = replyMsg(c, msg, fmt.Sprintf("Deployment failed for %s: %v", app.Name, err), &td.SendTextMessageOpts{ReplyMarkup: kb})
+			_, _ = msg.ReplyText(c, text, sendOpts(msg, kb))
 		}
 		return nil
 	}
@@ -296,7 +234,7 @@ func deployCmdHandler(c *td.Client, msg *td.Message) error {
 	if loadingMsg != nil {
 		_, err = editMsg(c, loadingMsg, resultText, &td.EditTextMessageOpts{ReplyMarkup: kb})
 	} else {
-		_, err = replyMsg(c, msg, resultText, &td.SendTextMessageOpts{ReplyMarkup: kb})
+		_, err = msg.ReplyText(c, resultText, sendOpts(msg, kb))
 	}
 	return err
 }
@@ -304,12 +242,12 @@ func deployCmdHandler(c *td.Client, msg *td.Message) error {
 func deploymentsHandler(c *td.Client, msg *td.Message) error {
 	deps, err := config.Coolify.ListDeployments()
 	if err != nil {
-		_, err = replyMsg(c, msg, "Failed to fetch deployments: "+err.Error(), nil)
+		_, err = msg.ReplyText(c, "Failed to fetch deployments: "+err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	if len(deps) == 0 {
-		_, err = replyMsg(c, msg, "No active deployments found.", nil)
+		_, err = msg.ReplyText(c, "No active deployments found.", sendOpts(msg, nil))
 		return err
 	}
 
@@ -324,19 +262,19 @@ func deploymentsHandler(c *td.Client, msg *td.Message) error {
 		sb.WriteString("--------------------\n")
 	}
 
-	_, err = replyMsg(c, msg, sb.String(), nil)
+	_, err = msg.ReplyText(c, sb.String(), sendOpts(msg, nil))
 	return err
 }
 
 func serversHandler(c *td.Client, msg *td.Message) error {
 	servers, err := config.Coolify.ListServers()
 	if err != nil {
-		_, err = replyMsg(c, msg, "Failed to fetch servers: "+err.Error(), nil)
+		_, err = msg.ReplyText(c, "Failed to fetch servers: "+err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	if len(servers) == 0 {
-		_, err = replyMsg(c, msg, "No servers found.", nil)
+		_, err = msg.ReplyText(c, "No servers found.", sendOpts(msg, nil))
 		return err
 	}
 
@@ -353,19 +291,19 @@ func serversHandler(c *td.Client, msg *td.Message) error {
 		sb.WriteString("--------------------\n")
 	}
 
-	_, err = replyMsg(c, msg, sb.String(), nil)
+	_, err = msg.ReplyText(c, sb.String(), sendOpts(msg, nil))
 	return err
 }
 
 func databasesHandler(c *td.Client, msg *td.Message) error {
 	dbs, err := config.Coolify.ListDatabases()
 	if err != nil {
-		_, err = replyMsg(c, msg, "Failed to fetch databases: "+err.Error(), nil)
+		_, err = msg.ReplyText(c, "Failed to fetch databases: "+err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
 	if len(dbs) == 0 {
-		_, err = replyMsg(c, msg, "No databases found.", nil)
+		_, err = msg.ReplyText(c, "No databases found.", sendOpts(msg, nil))
 		return err
 	}
 
@@ -378,6 +316,6 @@ func databasesHandler(c *td.Client, msg *td.Message) error {
 		sb.WriteString("--------------------\n")
 	}
 
-	_, err = replyMsg(c, msg, sb.String(), nil)
+	_, err = msg.ReplyText(c, sb.String(), sendOpts(msg, nil))
 	return err
 }
