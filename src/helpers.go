@@ -41,6 +41,7 @@ func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessag
 	}
 
 	if !msg.IsPrivate() {
+
 		eOpts := &td.EditEphemeralMessageTextOpts{
 			ParseMode:             opts.ParseMode,
 			DisableWebPagePreview: opts.DisableWebPagePreview,
@@ -50,7 +51,8 @@ func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessag
 			ShowAboveText:         opts.ShowAboveText,
 			ReplyMarkup:           opts.ReplyMarkup,
 		}
-		err := c.EditEphemeralMessageText(msg.ChatId, int32(msg.Id), msg.SenderID(), text, eOpts)
+		
+		err := c.EditEphemeralMessageText(msg.ChatId, msg.EphemeralMessageId, msg.SenderID(), text, eOpts)
 		if err == nil {
 			return msg, nil
 		}

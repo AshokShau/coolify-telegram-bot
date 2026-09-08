@@ -28,6 +28,80 @@ type Client struct {
 	cache   *cache
 }
 
+func (c *Client) ListProjects() ([]Project, error) {
+	if cached, found := c.cache.Get("projects"); found {
+		return cached.([]Project), nil
+	}
+
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/projects", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, errors.New("invalid token (400)")
+	}
+
+	var projects []Project
+	err = json.NewDecoder(resp.Body).Decode(&projects)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set("projects", projects)
+	return projects, nil
+}
+
+func (c *Client) GetProjectByUUID(uuid string) (*Project, error) {
+	cacheKey := fmt.Sprintf("project_%s", uuid)
+	if cached, found := c.cache.Get(cacheKey); found {
+		p := cached.(Project)
+		return &p, nil
+	}
+
+	url := fmt.Sprintf("%s/api/v1/projects/%s", c.BaseURL, uuid)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, errors.New("invalid token (400)")
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errors.New("project not found")
+	}
+
+	var project Project
+	err = json.NewDecoder(resp.Body).Decode(&project)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set(cacheKey, project)
+	return &project, nil
+}
+
 func (c *Client) ListApplications() ([]Application, error) {
 	if cached, found := c.cache.Get("applications"); found {
 		return cached.([]Application), nil
@@ -65,7 +139,8 @@ func (c *Client) ListApplications() ([]Application, error) {
 func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 	cacheKey := fmt.Sprintf("app_%s", uuid)
 	if cached, found := c.cache.Get(cacheKey); found {
-		return new(cached.(ApplicationDetail)), nil
+		app := cached.(ApplicationDetail)
+		return &app, nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
@@ -218,7 +293,8 @@ func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, e
 func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bool) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_start_%s_%v_%v", uuid, force, instantDeploy)
 	if cached, found := c.cache.Get(cacheKey); found {
-		return new(cached.(StartDeploymentResponse)), nil
+		dep := cached.(StartDeploymentResponse)
+		return &dep, nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/start", c.BaseURL, uuid)
@@ -265,7 +341,8 @@ func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bo
 func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, error) {
 	cacheKey := fmt.Sprintf("app_stop_%s", uuid)
 	if cached, found := c.cache.Get(cacheKey); found {
-		return new(cached.(StopApplicationResponse)), nil
+		stop := cached.(StopApplicationResponse)
+		return &stop, nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/stop", c.BaseURL, uuid)
@@ -305,7 +382,8 @@ func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, e
 func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_restart_%s", uuid)
 	if cached, found := c.cache.Get(cacheKey); found {
-		return new(cached.(StartDeploymentResponse)), nil
+		dep := cached.(StartDeploymentResponse)
+		return &dep, nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/restart", c.BaseURL, uuid)

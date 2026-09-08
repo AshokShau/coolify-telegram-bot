@@ -2,6 +2,7 @@ package src
 
 import (
 	"coolifymanager/src/config"
+	"coolifymanager/src/coolity"
 	"coolifymanager/src/database"
 	"coolifymanager/src/scheduler"
 	"fmt"
@@ -52,6 +53,23 @@ func checkDeleteConfirmation(userID int64, uuid string, now time.Time) DeleteCon
 
 func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	projects, err := config.Coolify.ListProjects()
+	if err == nil && len(projects) > 0 {
+		kb := &td.ReplyMarkupInlineKeyboard{}
+		for _, proj := range projects {
+			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+				{
+					Text: proj.Name,
+					Type: &td.InlineKeyboardButtonTypeCallback{
+						Data: []byte("proj:" + proj.UUID),
+					},
+				},
+			})
+		}
+		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
 		_ = editCallback(c, cb, "Failed to fetch projects: "+err.Error(), nil)
@@ -59,7 +77,7 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	if len(apps) == 0 {
-		_ = editCallback(c, cb, "No applications found.", nil)
+		_ = editCallback(c, cb, "No projects or applications found.", nil)
 		return nil
 	}
 
@@ -102,7 +120,62 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		kb.Rows = append(kb.Rows, row)
 	}
 
-	return editCallback(c, cb, "<b>Select a project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
+
+func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	cbData := cb.DataString()
+	projectUUID := strings.TrimPrefix(cbData, "proj:")
+
+	project, _ := config.Coolify.GetProjectByUUID(projectUUID)
+	projectName := "Project"
+	if project != nil {
+		projectName = project.Name
+	}
+
+	apps, err := config.Coolify.ListApplications()
+	if err != nil {
+		_ = editCallback(c, cb, "Failed to fetch applications: "+err.Error(), nil)
+		return nil
+	}
+
+	var projectApps []coolify.Application
+	for _, app := range apps {
+		if projectUUID == "" || app.ProjectUUID == "" || app.ProjectUUID == projectUUID {
+			projectApps = append(projectApps, app)
+		}
+	}
+	if len(projectApps) == 0 {
+		projectApps = apps
+	}
+
+	kb := &td.ReplyMarkupInlineKeyboard{}
+	for _, app := range projectApps {
+		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
+		data := "project_menu:" + app.UUID
+
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			{
+				Text: text,
+				Type: &td.InlineKeyboardButtonTypeCallback{
+					Data: []byte(data),
+				},
+			},
+		})
+	}
+
+	kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+		{
+			Text: "Back",
+			Type: &td.InlineKeyboardButtonTypeCallback{
+				Data: []byte("list_projects:"),
+			},
+		},
+	})
+
+	return editCallback(c, cb, fmt.Sprintf("<b>Applications in %s:</b>", projectName), &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
