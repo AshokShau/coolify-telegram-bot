@@ -8,18 +8,17 @@ import (
 	"time"
 )
 
-// NewClient creates a new Coolify API client with optional caching
-// ttl is the cache time-to-live duration. If 0, caching is disabled.
+// NewClient creates a new Coolify API client with caching
 func NewClient(baseURL, token string, httpClient *http.Client, ttl time.Duration) *Client {
-	c := &Client{
+	if ttl <= 0 {
+		ttl = 30 * time.Minute
+	}
+	return &Client{
 		BaseURL: baseURL,
 		Token:   token,
 		Client:  httpClient,
+		cache:   newCache(ttl),
 	}
-	if ttl > 0 {
-		c.cache = newCache(ttl)
-	}
-	return c
 }
 
 type Client struct {
@@ -30,14 +29,10 @@ type Client struct {
 }
 
 func (c *Client) ListApplications() ([]Application, error) {
-	// Check cache first
-	if c.cache != nil {
-		if cached, found := c.cache.Get("applications"); found {
-			return cached.([]Application), nil
-		}
+	if cached, found := c.cache.Get("applications"); found {
+		return cached.([]Application), nil
 	}
 
-	// If not in cache or cache miss, make the API call
 	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/applications", nil)
 	if err != nil {
 		return nil, err
@@ -63,20 +58,14 @@ func (c *Client) ListApplications() ([]Application, error) {
 		return nil, err
 	}
 
-	// Cache the result if cache is enabled
-	if c.cache != nil {
-		c.cache.Set("applications", apps)
-	}
-
+	c.cache.Set("applications", apps)
 	return apps, nil
 }
 
 func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 	cacheKey := fmt.Sprintf("app_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(ApplicationDetail)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return new(cached.(ApplicationDetail)), nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
@@ -108,11 +97,7 @@ func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 		return nil, err
 	}
 
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, app)
-	}
-
+	c.cache.Set(cacheKey, app)
 	return &app, nil
 }
 
@@ -144,20 +129,16 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 
-	// Clear relevant cache entries
-	if c.cache != nil {
-		c.cache.Delete(fmt.Sprintf("app_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
-
-		c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
-		c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
-		c.cache.Delete("applications")
-	}
+	c.cache.Delete(fmt.Sprintf("app_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
+	c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
+	c.cache.Delete("applications")
 
 	return nil
 }
@@ -197,10 +178,8 @@ func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
 	cacheKey := fmt.Sprintf("app_envs_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return cached.([]EnvironmentVariable), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return cached.([]EnvironmentVariable), nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/envs", c.BaseURL, uuid)
@@ -232,24 +211,17 @@ func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, e
 		return nil, err
 	}
 
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, envs)
-	}
-
+	c.cache.Set(cacheKey, envs)
 	return envs, nil
 }
 
 func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bool) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_start_%s_%v_%v", uuid, force, instantDeploy)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StartDeploymentResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return new(cached.(StartDeploymentResponse)), nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/start", c.BaseURL, uuid)
-	// Build query parameters
 	query := url + "?"
 	if force {
 		query += "force=true&"
@@ -286,20 +258,14 @@ func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bo
 		return nil, err
 	}
 
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, deployment)
-	}
-
+	c.cache.Set(cacheKey, deployment)
 	return &deployment, nil
 }
 
 func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, error) {
 	cacheKey := fmt.Sprintf("app_stop_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StopApplicationResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return new(cached.(StopApplicationResponse)), nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/stop", c.BaseURL, uuid)
@@ -332,20 +298,14 @@ func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, e
 		return nil, err
 	}
 
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, stopResponse)
-	}
-
+	c.cache.Set(cacheKey, stopResponse)
 	return &stopResponse, nil
 }
 
 func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_restart_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StartDeploymentResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return new(cached.(StartDeploymentResponse)), nil
 	}
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/restart", c.BaseURL, uuid)
@@ -378,10 +338,108 @@ func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse
 		return nil, err
 	}
 
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, deployment)
+	c.cache.Set(cacheKey, deployment)
+	return &deployment, nil
+}
+
+func (c *Client) ListServers() ([]Server, error) {
+	if cached, found := c.cache.Get("servers"); found {
+		return cached.([]Server), nil
 	}
 
-	return &deployment, nil
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/servers", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, errors.New("invalid token (400)")
+	}
+
+	var servers []Server
+	err = json.NewDecoder(resp.Body).Decode(&servers)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set("servers", servers)
+	return servers, nil
+}
+
+func (c *Client) ListDatabases() ([]Database, error) {
+	if cached, found := c.cache.Get("databases"); found {
+		return cached.([]Database), nil
+	}
+
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/databases", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, errors.New("invalid token (400)")
+	}
+
+	var databases []Database
+	err = json.NewDecoder(resp.Body).Decode(&databases)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set("databases", databases)
+	return databases, nil
+}
+
+func (c *Client) ListDeployments() ([]Deployment, error) {
+	if cached, found := c.cache.Get("deployments"); found {
+		return cached.([]Deployment), nil
+	}
+
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/deployments", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthenticated: invalid or missing token (401)")
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, errors.New("invalid token (400)")
+	}
+
+	var deployments []Deployment
+	err = json.NewDecoder(resp.Body).Decode(&deployments)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cache.Set("deployments", deployments)
+	return deployments, nil
 }

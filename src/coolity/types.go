@@ -56,3 +56,32 @@ type StartDeploymentResponse struct {
 type StopApplicationResponse struct {
 	Message string `json:"message"`
 }
+
+type Server struct {
+	ID          int64  `json:"id"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IP          string `json:"ip"`
+	User        string `json:"user"`
+	Port        int    `json:"port"`
+}
+
+type Database struct {
+	ID          int64  `json:"id"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	Description string `json:"description"`
+}
+
+type Deployment struct {
+	ID             int64  `json:"id"`
+	ApplicationID  string `json:"application_id"`
+	DeploymentUUID string `json:"deployment_uuid"`
+	Status         string `json:"status"`
+	Commit         string `json:"commit"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}

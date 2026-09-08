@@ -9,21 +9,19 @@ import (
 )
 
 func startHandler(c *td.Client, msg *td.Message) error {
-	response := fmt.Sprintf(`
-Welcome to <b>%s</b> — your assistant to manage Coolify projects.
-`, c.Me.FirstName)
+	response := fmt.Sprintf("Welcome to <b>%s</b> — your assistant to manage Coolify projects.", c.Me.FirstName)
 
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
 				{
-					Text: "📋 List Projects",
+					Text: "List Projects",
 					Type: &td.InlineKeyboardButtonTypeCallback{
 						Data: []byte("list_projects"),
 					},
 				},
 				{
-					Text: "💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ",
+					Text: "Fallen Projects",
 					Type: &td.InlineKeyboardButtonTypeUrl{
 						Url: "https://t.me/FallenProjects",
 					},
@@ -31,7 +29,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 			},
 			{
 				{
-					Text: "🛠 Sᴏᴜʀᴄᴇ Cᴏᴅᴇ",
+					Text: "Source Code",
 					Type: &td.InlineKeyboardButtonTypeUrl{
 						Url: "https://github.com/AshokShau/coolify-telegram-bot",
 					},
@@ -40,7 +38,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 		},
 	}
 
-	_, err := msg.ReplyText(c, response, &td.SendTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
+	_, err := replyMsg(c, msg, response, &td.SendTextMessageOpts{ReplyMarkup: kb})
 	if err != nil {
 		return fmt.Errorf("failed to send start message: %w", err)
 	}
@@ -49,7 +47,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 
 func pingHandler(c *td.Client, msg *td.Message) error {
 	start := time.Now()
-	msg, err := msg.ReplyText(c, "⏱️ Pinging...", nil)
+	rMsg, err := replyMsg(c, msg, "Pinging...", nil)
 	if err != nil {
 		return fmt.Errorf("failed to send ping message: %w", err)
 	}
@@ -58,16 +56,15 @@ func pingHandler(c *td.Client, msg *td.Message) error {
 	uptime := time.Since(startTime).Truncate(time.Second)
 
 	response := fmt.Sprintf(
-		"<b>📊 System Performance Metrics</b>\n\n"+
-			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
-			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
-			"⚙️ <b>Go Routines:</b> <code>%d</code>\n",
+		"<b>System Performance Metrics</b>\n\n"+
+			"Bot Latency: <code>%d ms</code>\n"+
+			"Uptime: <code>%s</code>\n"+
+			"Go Routines: <code>%d</code>\n",
 		latency, uptime, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.EditText(c, response, &td.EditTextMessageOpts{ParseMode: "HTML"})
-	if err != nil {
-		return fmt.Errorf("failed to edit ping message: %w", err)
+	if rMsg != nil {
+		_, err = editMsg(c, rMsg, response, nil)
 	}
-	return nil
+	return err
 }
