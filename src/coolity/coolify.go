@@ -350,7 +350,7 @@ func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse
 
 	url := fmt.Sprintf("%s/api/v1/applications/%s/restart", c.BaseURL, uuid)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return nil, err
 	}
