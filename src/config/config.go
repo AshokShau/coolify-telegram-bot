@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -57,14 +58,14 @@ func loadEnvFile(path string) error {
 			currentValue.Reset()
 		}
 
-		idx := strings.Index(line, "=")
-		if idx == -1 {
+		before, after, ok := strings.Cut(line, "=")
+		if !ok {
 			log.Printf("Skipping invalid line in .env: %s", line)
 			continue
 		}
 
-		key := strings.TrimSpace(line[:idx])
-		valuePart := strings.TrimSpace(line[idx+1:])
+		key := strings.TrimSpace(before)
+		valuePart := strings.TrimSpace(after)
 		if commentIdx := strings.Index(valuePart, " #"); commentIdx != -1 {
 			valuePart = strings.TrimSpace(valuePart[:commentIdx])
 		}
@@ -201,7 +202,7 @@ func parseDevIDs() error {
 		return nil // No dev IDs is valid
 	}
 
-	for _, idStr := range strings.Split(devList, ",") {
+	for idStr := range strings.SplitSeq(devList, ",") {
 		idStr = strings.TrimSpace(idStr)
 		if idStr == "" {
 			continue
@@ -218,10 +219,5 @@ func parseDevIDs() error {
 
 // IsDev checks if a given Telegram user ID is in the dev list
 func IsDev(userID int64) bool {
-	for _, id := range devIDs {
-		if id == userID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(devIDs, userID)
 }

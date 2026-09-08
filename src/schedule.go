@@ -117,8 +117,8 @@ func scheduleHandler(c *td.Client, msg *td.Message) error {
 						task.Schedule = schType
 						break
 					}
-				} else if strings.HasSuffix(base, "d") {
-					if _, err := strconv.Atoi(strings.TrimSuffix(base, "d")); err == nil {
+				} else if before, ok := strings.CutSuffix(base, "d"); ok {
+					if _, err := strconv.Atoi(before); err == nil {
 						task.Schedule = "every_" + base + "_at_" + timeStr
 						break
 					}
@@ -131,8 +131,8 @@ func scheduleHandler(c *td.Client, msg *td.Message) error {
 			break
 		}
 
-		if strings.HasSuffix(schType, "d") {
-			if _, err := strconv.Atoi(strings.TrimSuffix(schType, "d")); err == nil {
+		if before, ok := strings.CutSuffix(schType, "d"); ok {
+			if _, err := strconv.Atoi(before); err == nil {
 				if len(args) >= 4 {
 					timeStr := args[3]
 					if _, err := time.Parse("15:04", timeStr); err == nil {

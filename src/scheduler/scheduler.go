@@ -5,6 +5,7 @@ import (
 	"coolifymanager/src/database"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -102,10 +103,8 @@ func ScheduleTask(task database.ScheduledTask) error {
 
 func RemoveTask(id string) error {
 	for _, j := range s.Jobs() {
-		for _, tag := range j.Tags() {
-			if tag == id {
-				return s.RemoveJob(j.ID())
-			}
+		if slices.Contains(j.Tags(), id) {
+			return s.RemoveJob(j.ID())
 		}
 	}
 	return nil
@@ -116,8 +115,8 @@ func ParseDurationSchedule(schedule string) (time.Duration, bool) {
 		return 0, false
 	}
 	s := strings.TrimPrefix(schedule, "every_")
-	if strings.HasSuffix(s, "d") {
-		val, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+	if before, ok := strings.CutSuffix(s, "d"); ok {
+		val, err := strconv.Atoi(before)
 		if err != nil {
 			return 0, false
 		}
