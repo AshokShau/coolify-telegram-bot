@@ -54,8 +54,13 @@ func checkDeleteConfirmation(userID int64, uuid string, now time.Time) DeleteCon
 func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
-	projects, err := config.Coolify.ListProjects()
-	if err == nil && len(projects) > 0 {
+	cbData := cb.DataString()
+	if cbData == "list_projects:projects" {
+		projects, err := config.Coolify.ListProjects()
+		if err != nil || len(projects) == 0 {
+			return editCallback(c, cb, "No projects found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("list_projects:")})
+		}
+
 		kb := &td.ReplyMarkupInlineKeyboard{}
 		for _, proj := range projects {
 			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
@@ -67,25 +72,32 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 				},
 			})
 		}
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			{
+				Text: "All Applications",
+				Type: &td.InlineKeyboardButtonTypeCallback{
+					Data: []byte("list_projects:"),
+				},
+			},
+		})
 		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 	}
 
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
-		_ = editCallback(c, cb, "Failed to fetch projects: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to fetch applications: "+err.Error(), nil)
 		return nil
 	}
 
 	if len(apps) == 0 {
-		_ = editCallback(c, cb, "No projects or applications found.", nil)
+		_ = editCallback(c, cb, "No applications found.", nil)
 		return nil
 	}
 
 	page := 1
-	cbData := cb.DataString()
 	if strings.Contains(cbData, ":") {
 		parts := strings.Split(cbData, ":")
-		if len(parts) > 1 {
+		if len(parts) > 1 && parts[1] != "" && parts[1] != "projects" {
 			fmt.Sscanf(parts[1], "%d", &page)
 		}
 	}
@@ -107,8 +119,8 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		})
 	}
 
+	row := make([]td.InlineKeyboardButton, 0)
 	if len(paginationButtons) > 0 {
-		row := make([]td.InlineKeyboardButton, 0, len(paginationButtons))
 		for _, btn := range paginationButtons {
 			row = append(row, td.InlineKeyboardButton{
 				Text: btn.Text,
@@ -117,8 +129,14 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 				},
 			})
 		}
-		kb.Rows = append(kb.Rows, row)
 	}
+	row = append(row, td.InlineKeyboardButton{
+		Text: "Projects",
+		Type: &td.InlineKeyboardButtonTypeCallback{
+			Data: []byte("list_projects:projects"),
+		},
+	})
+	kb.Rows = append(kb.Rows, row)
 
 	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
@@ -127,7 +145,14 @@ func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
-	projectUUID := strings.TrimPrefix(cbData, "proj:")
+	raw := strings.TrimPrefix(cbData, "proj:")
+	parts := strings.Split(raw, ":")
+
+	projectUUID := parts[0]
+	page := 1
+	if len(parts) > 1 {
+		fmt.Sscanf(parts[1], "%d", &page)
+	}
 
 	project, _ := config.Coolify.GetProjectByUUID(projectUUID)
 	projectName := "Project"
@@ -151,8 +176,11 @@ func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		projectApps = apps
 	}
 
+	prefix := fmt.Sprintf("proj:%s:", projectUUID)
+	start, end, paginationButtons := Paginate(len(projectApps), page, 7, prefix)
+
 	kb := &td.ReplyMarkupInlineKeyboard{}
-	for _, app := range projectApps {
+	for _, app := range projectApps[start:end] {
 		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
 		data := "project_menu:" + app.UUID
 
@@ -166,9 +194,28 @@ func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		})
 	}
 
+	row := make([]td.InlineKeyboardButton, 0)
+	if len(paginationButtons) > 0 {
+		for _, btn := range paginationButtons {
+			row = append(row, td.InlineKeyboardButton{
+				Text: btn.Text,
+				Type: &td.InlineKeyboardButtonTypeCallback{
+					Data: []byte(btn.Data),
+				},
+			})
+		}
+	}
+	kb.Rows = append(kb.Rows, row)
+
 	kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
 		{
 			Text: "Back",
+			Type: &td.InlineKeyboardButtonTypeCallback{
+				Data: []byte("list_projects:projects"),
+			},
+		},
+		{
+			Text: "All Applications",
 			Type: &td.InlineKeyboardButtonTypeCallback{
 				Data: []byte("list_projects:"),
 			},
@@ -189,6 +236,12 @@ func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	text := fmt.Sprintf("<b>%s</b>\nURL: %s\nStatus: <code>%s</code>", app.Name, app.FQDN, app.Status)
+
+	backData := "list_projects:"
+	if app.ProjectUUID != "" {
+		backData = "proj:" + app.ProjectUUID
+	}
+
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
@@ -251,7 +304,13 @@ func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 				{
 					Text: "Back",
 					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("list_projects:"),
+						Data: []byte(backData),
+					},
+				},
+				{
+					Text: "Projects",
+					Type: &td.InlineKeyboardButtonTypeCallback{
+						Data: []byte("list_projects:projects"),
 					},
 				},
 			},
