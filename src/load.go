@@ -24,8 +24,8 @@ func InitFunc(c *td.Client) error {
 	}
 
 	c.OnCommand("start", startHandler)
+	c.OnCommand("ping", pingHandler)
 
-	registerDevCommand(c, "ping", pingHandler)
 	registerDevCommand(c, "jobs", jobsHandler)
 	registerDevCommand(c, "job", scheduleHandler)
 	registerDevCommand(c, "schedule", scheduleHandler)
