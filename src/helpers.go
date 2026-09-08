@@ -41,7 +41,6 @@ func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessag
 	}
 
 	if !msg.IsPrivate() {
-
 		eOpts := &td.EditEphemeralMessageTextOpts{
 			ParseMode:             opts.ParseMode,
 			DisableWebPagePreview: opts.DisableWebPagePreview,
@@ -71,6 +70,11 @@ func editCallback(c *td.Client, cb *td.UpdateNewCallbackQuery, text string, opts
 	}
 
 	if !cb.IsPrivate() {
+		msg, err := cb.GetMessage(c)
+		if err != nil {
+			return err
+		}
+
 		eOpts := &td.EditEphemeralMessageTextOpts{
 			ParseMode:             opts.ParseMode,
 			DisableWebPagePreview: opts.DisableWebPagePreview,
@@ -80,10 +84,8 @@ func editCallback(c *td.Client, cb *td.UpdateNewCallbackQuery, text string, opts
 			ShowAboveText:         opts.ShowAboveText,
 			ReplyMarkup:           opts.ReplyMarkup,
 		}
-		err := c.EditEphemeralMessageText(cb.ChatId, int32(cb.MessageId), cb.SenderUserId, text, eOpts)
-		if err == nil {
-			return nil
-		}
+		
+		return c.EditEphemeralMessageText(cb.ChatId, msg.EphemeralMessageId, cb.SenderUserId, text, eOpts)
 	}
 
 	_, err := cb.EditMessageText(c, text, opts)
