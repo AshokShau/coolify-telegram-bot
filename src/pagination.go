@@ -22,10 +22,7 @@ func Paginate(totalItems int, currentPage int, pageSize int, callbackPrefix stri
 	}
 
 	startIndex = (currentPage - 1) * pageSize
-	endIndex = startIndex + pageSize
-	if endIndex > totalItems {
-		endIndex = totalItems
-	}
+	endIndex = min(startIndex+pageSize, totalItems)
 
 	if currentPage > 1 {
 		buttons = append(buttons, PageButton{Text: "< Prev", Data: fmt.Sprintf("%s%d", callbackPrefix, currentPage-1)})
@@ -41,10 +38,7 @@ func Paginate(totalItems int, currentPage int, pageSize int, callbackPrefix stri
 
 	if endPage > totalPages {
 		endPage = totalPages
-		startPage = totalPages - 2
-		if startPage < 1 {
-			startPage = 1
-		}
+		startPage = max(totalPages-2, 1)
 	}
 
 	for p := startPage; p <= endPage; p++ {

@@ -1,7 +1,6 @@
 package src
 
 import (
-	"coolifymanager/src/config"
 	"coolifymanager/src/database"
 	"fmt"
 	"strings"
@@ -12,28 +11,18 @@ import (
 const pageSize = 5
 
 func jobsHandler(c *td.Client, msg *td.Message) error {
-	if !config.IsDev(msg.SenderID()) {
-		_, err := msg.ReplyText(c, "🚫 You are not authorized to use this command.", nil)
-		return err
-	}
-
 	text, kb, err := buildJobsMessage(1)
 	if err != nil {
-		_, err = msg.ReplyText(c, "❌ "+err.Error(), nil)
+		_, err = msg.ReplyText(c, err.Error(), sendOpts(msg, nil))
 		return err
 	}
 
-	_, err = msg.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
+	_, err = msg.ReplyText(c, text, sendOpts(msg, kb))
 	return err
 }
 
 func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	data := cb.DataString()
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "🚫 You are not authorized.", "")
-		return nil
-	}
-
 	page := 1
 	if parts := strings.Split(data, ":"); len(parts) > 1 {
 		fmt.Sscanf(parts[1], "%d", &page)
@@ -41,12 +30,11 @@ func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	text, kb, err := buildJobsMessage(page)
 	if err != nil {
-		_ = cb.Answer(c, 0, true, "❌ "+err.Error(), "")
+		_ = cb.Answer(c, 0, true, err.Error(), "")
 		return nil
 	}
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
@@ -56,38 +44,27 @@ func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
 	}
 
 	if len(tasks) == 0 {
-		return "📭 No scheduled jobs found.", nil, nil
+		return "No scheduled jobs found.", nil, nil
 	}
 
 	start, end, buttons := Paginate(len(tasks), page, pageSize, "jobs:")
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<b>📅 Scheduled Jobs (Page %d):</b>\n\n", page))
+	sb.WriteString(fmt.Sprintf("<b>Scheduled Jobs (Page %d):</b>\n\n", page))
 
 	for _, task := range tasks[start:end] {
-		sb.WriteString(fmt.Sprintf("🆔 <code>%s</code>\n", task.ID.Hex()))
-		sb.WriteString(fmt.Sprintf("🏷️ <b>Name:</b> %s\n", task.Name))
-		sb.WriteString(fmt.Sprintf("🔧 <b>Type:</b> %s\n", task.Type))
-		sb.WriteString(fmt.Sprintf("⏰ <b>Schedule:</b> %s\n", task.Schedule))
+		sb.WriteString(fmt.Sprintf("ID: <code>%s</code>\n", task.ID.Hex()))
+		sb.WriteString(fmt.Sprintf("Name: %s\n", task.Name))
+		sb.WriteString(fmt.Sprintf("Type: %s\n", task.Type))
+		sb.WriteString(fmt.Sprintf("Schedule: %s\n", task.Schedule))
 		if task.OneTime {
-			sb.WriteString(fmt.Sprintf("⏳ <b>Next Run:</b> %s\n", task.NextRun.Format("2006-01-02 15:04:05")))
+			sb.WriteString(fmt.Sprintf("Next Run: %s\n", task.NextRun.Format("2006-01-02 15:04:05")))
 		}
-		sb.WriteString("➖➖➖➖➖➖➖➖➖➖\n")
+		sb.WriteString("--------------------\n")
 	}
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
-	if len(buttons) > 0 {
-		row := make([]td.InlineKeyboardButton, 0, len(buttons))
-
-		for _, btn := range buttons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
-
+	if row := buildPaginationButtonsRow(buttons); len(row) > 0 {
 		kb.Rows = append(kb.Rows, row)
 	}
 

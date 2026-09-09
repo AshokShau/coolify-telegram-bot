@@ -2,6 +2,7 @@ package src
 
 import (
 	"coolifymanager/src/config"
+	"coolifymanager/src/coolity"
 	"coolifymanager/src/database"
 	"coolifymanager/src/scheduler"
 	"fmt"
@@ -51,28 +52,42 @@ func checkDeleteConfirmation(userID int64, uuid string, now time.Time) DeleteCon
 }
 
 func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	cbData := cb.DataString()
+	if cbData == "list_projects:projects" {
+		projects, err := config.Coolify.ListProjects()
+		if err != nil || len(projects) == 0 {
+			return editCallback(c, cb, "No projects found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("list_projects:")})
+		}
+
+		kb := &td.ReplyMarkupInlineKeyboard{}
+		for _, proj := range projects {
+			kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+				makeCallbackButton(proj.Name, "proj:"+proj.UUID),
+			})
+		}
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			makeCallbackButton("All Applications", "list_projects:"),
+		})
+		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 	}
 
-	_ = cb.Answer(c, 0, false, "Processing...", "")
 	apps, err := config.Coolify.ListApplications()
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to fetch projects:"+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to fetch applications: "+err.Error(), nil)
 		return nil
 	}
 
 	if len(apps) == 0 {
-		_, _ = cb.EditMessageText(c, "No applications found.", nil)
+		_ = editCallback(c, cb, "No applications found.", nil)
 		return nil
 	}
 
 	page := 1
-	cbData := cb.DataString()
 	if strings.Contains(cbData, ":") {
 		parts := strings.Split(cbData, ":")
-		if len(parts) > 1 {
+		if len(parts) > 1 && parts[1] != "" && parts[1] != "projects" {
 			fmt.Sscanf(parts[1], "%d", &page)
 		}
 	}
@@ -81,152 +96,176 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
 	for _, app := range apps[start:end] {
-		text := fmt.Sprintf("📦 %s (%s)", app.Name, app.Status)
-		data := "project_menu:" + app.UUID
-
+		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
-			{
-				Text: text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(data),
-				},
-			},
+			makeCallbackButton(text, "project_menu:"+app.UUID),
 		})
 	}
 
-	if len(paginationButtons) > 0 {
-		row := make([]td.InlineKeyboardButton, 0, len(paginationButtons))
+	row := buildPaginationButtonsRow(paginationButtons)
+	row = append(row, makeCallbackButton("Projects", "list_projects:projects"))
+	kb.Rows = append(kb.Rows, row)
 
-		for _, btn := range paginationButtons {
-			row = append(row, td.InlineKeyboardButton{
-				Text: btn.Text,
-				Type: &td.InlineKeyboardButtonTypeCallback{
-					Data: []byte(btn.Data),
-				},
-			})
-		}
-
-		kb.Rows = append(kb.Rows, row)
-	}
-
-	_, err = cb.EditMessageText(c, "<b>📋 Select a project:</b>", &td.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
-func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
+func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	cbData := cb.DataString()
+	raw := strings.TrimPrefix(cbData, "proj:")
+	parts := strings.Split(raw, ":")
+
+	projectUUID := parts[0]
+	page := 1
+	if len(parts) > 1 {
+		fmt.Sscanf(parts[1], "%d", &page)
+	}
+
+	project, _ := config.Coolify.GetProjectByUUID(projectUUID)
+	projectName := "Project"
+	if project != nil {
+		projectName = project.Name
+	}
+
+	apps, err := config.Coolify.ListApplications()
+	if err != nil {
+		_ = editCallback(c, cb, "Failed to fetch applications: "+err.Error(), nil)
 		return nil
 	}
 
+	var projectApps []coolify.Application
+	for _, app := range apps {
+		if projectUUID == "" || app.ProjectUUID == "" || app.ProjectUUID == projectUUID {
+			projectApps = append(projectApps, app)
+		}
+	}
+	if len(projectApps) == 0 {
+		projectApps = apps
+	}
+
+	prefix := fmt.Sprintf("proj:%s:", projectUUID)
+	start, end, paginationButtons := Paginate(len(projectApps), page, 7, prefix)
+
+	kb := &td.ReplyMarkupInlineKeyboard{}
+	for _, app := range projectApps[start:end] {
+		text := fmt.Sprintf("%s (%s)", app.Name, app.Status)
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			makeCallbackButton(text, "project_menu:"+app.UUID),
+		})
+	}
+
+	if row := buildPaginationButtonsRow(paginationButtons); len(row) > 0 {
+		kb.Rows = append(kb.Rows, row)
+	}
+
+	kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+		makeCallbackButton("Back", "list_projects:projects"),
+		makeCallbackButton("All Applications", "list_projects:"),
+	})
+
+	return editCallback(c, cb, fmt.Sprintf("<b>Applications in %s:</b>", projectName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
+
+func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "project_menu:")
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
 	if err != nil {
-		_, err = cb.EditMessageText(c, "❌ Failed to load project: "+err.Error(), nil)
-		return err
+		return editCallback(c, cb, "Failed to load project: "+err.Error(), nil)
 	}
 
-	text := fmt.Sprintf("<b>📦 %s</b>\n🌐 %s\n📄 Status: <code>%s</code>", app.Name, app.FQDN, app.Status)
+	text := fmt.Sprintf("<b>%s</b>\nURL: %s\nStatus: <code>%s</code>", app.Name, app.FQDN, app.Status)
+
+	backData := "list_projects:"
+	if app.ProjectUUID != "" {
+		backData = "proj:" + app.ProjectUUID
+	}
+
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "🔄 Restart",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("restart:" + uuid),
-					},
-				},
-				{
-					Text: "🚀 Deploy",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("deploy:" + uuid),
-					},
-				},
+				makeCallbackButton("Restart", "restart:"+uuid),
+				makeCallbackButton("Deploy", "deploy:"+uuid),
 			},
 			{
-				{
-					Text: "📜 Logs",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("logs:" + uuid),
-					},
-				},
-				{
-					Text: "ℹ️ Status",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("status:" + uuid),
-					},
-				},
+				makeCallbackButton("Logs", "logs:"+uuid),
+				makeCallbackButton("Status", "status:"+uuid),
 			},
 			{
-				{
-					Text: "📅 Schedule",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_m:" + uuid),
-					},
-				},
+				makeCallbackButton("ENV", "env:"+uuid),
+				makeCallbackButton("Schedule", "sch_m:"+uuid),
 			},
 			{
-				{
-					Text: "🛑 Stop",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("stop:" + uuid),
-					},
-				},
-				{
-					Text: "❌ Delete",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("delete:" + uuid),
-					},
-				},
+				makeCallbackButton("Stop", "stop:"+uuid),
+				makeCallbackButton("Delete", "delete:"+uuid),
 			},
 			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("list_projects:"),
-					},
-				},
+				makeCallbackButton("Back", backData),
+				makeCallbackButton("Projects", "list_projects:projects"),
 			},
 		},
 	}
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{
-		ParseMode:   "HTML",
-		ReplyMarkup: kb,
-	})
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
 
-	return err
+func envCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	// ENV viewing is restricted to Private Messages
+	if !cb.IsPrivate() {
+		_ = cb.Answer(c, 0, true, "Environment variables can only be viewed in private chat.", "")
+		return nil
+	}
+
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	cbData := cb.DataString()
+	uuid := strings.TrimPrefix(cbData, "env:")
+
+	app, err := config.Coolify.GetApplicationByUUID(uuid)
+	if err != nil {
+		_ = editCallback(c, cb, "Failed to load project: "+err.Error(), nil)
+		return nil
+	}
+
+	envs, err := config.Coolify.GetApplicationEnvsByUUID(uuid)
+	kb := makeBackButton("project_menu:" + uuid)
+
+	if err != nil {
+		_ = editCallback(c, cb, fmt.Sprintf("Failed to fetch environment variables: %v", err), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return nil
+	}
+
+	if len(envs) == 0 {
+		_ = editCallback(c, cb, fmt.Sprintf("No environment variables found for <b>%s</b>.", app.Name), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("<b>Environment Variables for %s</b>\n\n", app.Name))
+	for _, env := range envs {
+		val := env.Value
+		if val == "" {
+			val = env.RealValue
+		}
+		sb.WriteString(fmt.Sprintf("<code>%s</code> = <code>%s</code>\n", env.Key, val))
+	}
+
+	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func restartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "restart:")
-
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
+	kb := makeBackButton("project_menu:" + uuid)
 
 	res, err := config.Coolify.RestartApplicationByUUID(uuid)
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -236,171 +275,108 @@ func restartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	} else if res.Message != "" {
 		text += fmt.Sprintf("\nMessage: %s", res.Message)
 	}
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func deployHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
-
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "deploy:")
-
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
+	kb := makeBackButton("project_menu:" + uuid)
 
 	res, err := config.Coolify.StartApplicationDeployment(uuid, false, false)
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Deploy failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Deploy failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return err
 	}
 
 	text := fmt.Sprintf("Deployment queued!\nDeployment UUID: <code>%s</code>", res.DeploymentUUID)
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	uuid := strings.TrimPrefix(cb.DataString(), "logs:")
+	kb := makeBackButton("project_menu:" + uuid)
 
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
-
-	_, _ = cb.EditMessageText(c, "Processing...", nil)
+	_ = editCallback(c, cb, "Fetching logs...", nil)
 	logsData, err := config.Coolify.GetApplicationLogsByUUID(uuid)
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Logs error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Logs error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return nil
+	}
+
+	app, _ := config.Coolify.GetApplicationByUUID(uuid)
+	appName := uuid
+	if app != nil {
+		appName = app.Name
+	}
+
+	if len(logsData) <= 3000 {
+		text := fmt.Sprintf("<b>Logs for %s:</b>\n\n<code>%s</code>", appName, logsData)
+		return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 	}
 
 	tmpFile, err := os.CreateTemp("", "logs-*.txt")
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to create temp file: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to create temp file: "+err.Error(), nil)
 		return err
 	}
-
 	defer os.Remove(tmpFile.Name())
+
 	if _, err := tmpFile.Write([]byte(logsData)); err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to write logs: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to write logs: "+err.Error(), nil)
 		return err
 	}
-
 	tmpFile.Close()
 
-	file := tmpFile.Name()
-	_, err = c.EditMessageMedia(cb.ChatId, &td.InputMessageDocument{Document: &td.InputDocument{Document: td.InputFileLocal{Path: file}}}, cb.MessageId, &td.EditMessageMediaOpts{ReplyMarkup: kb})
-	if err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to send logs file: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
-		return fmt.Errorf("edit message media error: %s", err.Error())
+	msg, _ := cb.GetMessage(c)
+	if msg != nil {
+		caption := fmt.Sprintf("<b>%s logs</b>", appName)
+		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, kb))
+		if err == nil {
+			_ = editCallback(c, cb, fmt.Sprintf("Logs for <b>%s</b> sent as document.", appName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		}
 	}
-
-	return nil
+	return err
 }
 
 func statusHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, true, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "status:")
-
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
+	kb := makeBackButton("project_menu:" + uuid)
 
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Status error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Status error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return nil
 	}
 
 	text := fmt.Sprintf("<b>%s</b>\nCurrent Status: <code>%s</code>", app.Name, app.Status)
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func stopHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "stop:")
+	kb := makeBackButton("project_menu:" + uuid)
 
 	res, err := config.Coolify.StopApplicationByUUID(uuid)
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
-
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Stop failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Stop failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return nil
 	}
 
-	_, err = cb.EditMessageText(c, res.Message, &td.EditTextMessageOpts{ReplyMarkup: kb, ParseMode: "HTML"})
-	return err
+	return editCallback(c, cb, res.Message, &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func deleteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
-
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "delete:")
 
@@ -420,33 +396,17 @@ func deleteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	err := config.Coolify.DeleteApplicationByUUID(uuid)
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
+	kb := makeBackButton("project_menu:" + uuid)
 
 	if err != nil {
-		_, err = cb.EditMessageText(c, "Delete failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Delete failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		return nil
 	}
 
-	_, err = cb.EditMessageText(c, "Application deleted successfully.", &td.EditTextMessageOpts{ReplyMarkup: kb})
-	return err
+	return editCallback(c, cb, "Application deleted successfully.", &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func scheduleMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
 	cbData := cb.DataString()
@@ -455,39 +415,20 @@ func scheduleMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
-				{
-					Text: "🔄 Restart",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_a:" + uuid + ":restart"),
-					},
-				},
+				makeCallbackButton("Restart", "sch_a:"+uuid+":restart"),
 			},
 			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
+				makeCallbackButton("Back", "project_menu:"+uuid),
 			},
 		},
 	}
 
-	_, err := cb.EditMessageText(c, "<b>📅 Select Action Type:</b>", &td.EditTextMessageOpts{
-		ParseMode:   "HTML",
-		ReplyMarkup: kb,
-	})
-	return err
+	return editCallback(c, cb, "<b>Select Action Type:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func scheduleActionHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
-	// Format: sch_a:uuid:actionType
 	cbData := cb.DataString()
 	data := strings.TrimPrefix(cbData, "sch_a:")
 	parts := strings.Split(data, ":")
@@ -497,75 +438,23 @@ func scheduleActionHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	uuid := parts[0]
 	actionType := parts[1]
 
-	// Common intervals
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Hourly",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Daily",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Every 2 Days",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Every 3 Days",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Weekly",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte(fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType)),
-					},
-				},
-			},
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("sch_m:" + uuid),
-					},
-				},
-			},
+			{makeCallbackButton("Hourly", fmt.Sprintf("sch_c:%s:%s:every_1h", uuid, actionType))},
+			{makeCallbackButton("Daily", fmt.Sprintf("sch_c:%s:%s:every_1d", uuid, actionType))},
+			{makeCallbackButton("Every 2 Days", fmt.Sprintf("sch_c:%s:%s:every_2d", uuid, actionType))},
+			{makeCallbackButton("Every 3 Days", fmt.Sprintf("sch_c:%s:%s:every_3d", uuid, actionType))},
+			{makeCallbackButton("Weekly", fmt.Sprintf("sch_c:%s:%s:every_7d", uuid, actionType))},
+			{makeCallbackButton("Back", "sch_m:"+uuid)},
 		},
 	}
 
-	_, err := cb.EditMessageText(c, "<b>⏰ Select Schedule:</b>", &td.EditTextMessageOpts{
-		ParseMode:   "HTML",
-		ReplyMarkup: kb,
-	})
-	return err
+	return editCallback(c, cb, "<b>Select Schedule:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
 
 func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	if !config.IsDev(cb.SenderUserId) {
-		_ = cb.Answer(c, 0, true, "You are not authorized.", "")
-		return nil
-	}
 	_ = cb.Answer(c, 0, false, "Processing...", "")
 
-	// Format: sch_c:uuid:actionType:schedule
 	data := strings.TrimPrefix(cb.DataString(), "sch_c:")
 
 	parts := strings.Split(data, ":")
@@ -578,7 +467,7 @@ func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
 	if err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to get application: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to get application: "+err.Error(), nil)
 		return nil
 	}
 
@@ -591,32 +480,16 @@ func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	if err := database.AddTask(task); err != nil {
-		_, _ = cb.EditMessageText(c, "Failed to save task: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to save task: "+err.Error(), nil)
 		return nil
 	}
 
 	if err := scheduler.ScheduleTask(task); err != nil {
 		_ = database.DeleteTask(task.ID.Hex())
-		_, _ = cb.EditMessageText(c, "Failed to schedule task: "+err.Error(), nil)
+		_ = editCallback(c, cb, "Failed to schedule task: "+err.Error(), nil)
 		return nil
 	}
 
-	kb := &td.ReplyMarkupInlineKeyboard{
-		Rows: [][]td.InlineKeyboardButton{
-			{
-				{
-					Text: "Back",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("project_menu:" + uuid),
-					},
-				},
-			},
-		},
-	}
-
-	_, err = cb.EditMessageText(c, fmt.Sprintf("Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &td.EditTextMessageOpts{
-		ParseMode:   "HTML",
-		ReplyMarkup: kb,
-	})
-	return err
+	kb := makeBackButton("project_menu:" + uuid)
+	return editCallback(c, cb, fmt.Sprintf("Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &td.EditTextMessageOpts{ReplyMarkup: kb})
 }

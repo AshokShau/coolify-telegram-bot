@@ -6,7 +6,7 @@ import (
 )
 
 type cacheItem struct {
-	data      interface{}
+	data      any
 	expiresAt time.Time
 }
 
@@ -21,7 +21,7 @@ func newCache(ttl time.Duration) *cache {
 	}
 }
 
-func (c *cache) Get(key string) (interface{}, bool) {
+func (c *cache) Get(key string) (any, bool) {
 	item, ok := c.items.Load(key)
 	if !ok {
 		return nil, false
@@ -36,7 +36,7 @@ func (c *cache) Get(key string) (interface{}, bool) {
 	return cacheItem.data, true
 }
 
-func (c *cache) Set(key string, value interface{}) {
+func (c *cache) Set(key string, value any) {
 	c.items.Store(key, cacheItem{
 		data:      value,
 		expiresAt: time.Now().Add(c.ttl),
@@ -48,7 +48,7 @@ func (c *cache) Delete(key string) {
 }
 
 func (c *cache) Clear() {
-	c.items.Range(func(key, value interface{}) bool {
+	c.items.Range(func(key, value any) bool {
 		c.items.Delete(key)
 		return true
 	})

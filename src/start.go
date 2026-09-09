@@ -9,21 +9,14 @@ import (
 )
 
 func startHandler(c *td.Client, msg *td.Message) error {
-	response := fmt.Sprintf(`
-Welcome to <b>%s</b> — your assistant to manage Coolify projects.
-`, c.Me.FirstName)
+	response := fmt.Sprintf("Welcome to <b>%s</b> — your assistant to manage Coolify projects.", c.Me.FirstName)
 
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{
 			{
+				makeCallbackButton("List Projects", "list_projects"),
 				{
-					Text: "📋 List Projects",
-					Type: &td.InlineKeyboardButtonTypeCallback{
-						Data: []byte("list_projects"),
-					},
-				},
-				{
-					Text: "💫 Fᴀʟʟᴇɴ Pʀᴏᴊᴇᴄᴛꜱ",
+					Text: "Fallen Projects",
 					Type: &td.InlineKeyboardButtonTypeUrl{
 						Url: "https://t.me/FallenProjects",
 					},
@@ -31,7 +24,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 			},
 			{
 				{
-					Text: "🛠 Sᴏᴜʀᴄᴇ Cᴏᴅᴇ",
+					Text: "Source Code",
 					Type: &td.InlineKeyboardButtonTypeUrl{
 						Url: "https://github.com/AshokShau/coolify-telegram-bot",
 					},
@@ -40,7 +33,7 @@ Welcome to <b>%s</b> — your assistant to manage Coolify projects.
 		},
 	}
 
-	_, err := msg.ReplyText(c, response, &td.SendTextMessageOpts{ParseMode: "HTML", ReplyMarkup: kb})
+	_, err := msg.ReplyText(c, response, sendOpts(msg, kb))
 	if err != nil {
 		return fmt.Errorf("failed to send start message: %w", err)
 	}
@@ -65,9 +58,6 @@ func pingHandler(c *td.Client, msg *td.Message) error {
 		latency, uptime, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.EditText(c, response, &td.EditTextMessageOpts{ParseMode: "HTML"})
-	if err != nil {
-		return fmt.Errorf("failed to edit ping message: %w", err)
-	}
-	return nil
+	_, err = msg.EditText(c, response, nil)
+	return err
 }

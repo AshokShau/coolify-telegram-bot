@@ -5,22 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
-
-// NewClient creates a new Coolify API client with optional caching
-// ttl is the cache time-to-live duration. If 0, caching is disabled.
-func NewClient(baseURL, token string, httpClient *http.Client, ttl time.Duration) *Client {
-	c := &Client{
-		BaseURL: baseURL,
-		Token:   token,
-		Client:  httpClient,
-	}
-	if ttl > 0 {
-		c.cache = newCache(ttl)
-	}
-	return c
-}
 
 type Client struct {
 	BaseURL string
@@ -29,16 +16,21 @@ type Client struct {
 	cache   *cache
 }
 
-func (c *Client) ListApplications() ([]Application, error) {
-	// Check cache first
-	if c.cache != nil {
-		if cached, found := c.cache.Get("applications"); found {
-			return cached.([]Application), nil
-		}
+// NewClient creates a new Coolify API client with caching
+func NewClient(baseURL, token string, httpClient *http.Client, ttl time.Duration) *Client {
+	if ttl <= 0 {
+		ttl = 30 * time.Minute
 	}
+	return &Client{
+		BaseURL: baseURL,
+		Token:   token,
+		Client:  httpClient,
+		cache:   newCache(ttl),
+	}
+}
 
-	// If not in cache or cache miss, make the API call
-	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/applications", nil)
+func (c *Client) doRequest(method, urlPath string) (*http.Response, error) {
+	req, err := http.NewRequest(method, c.BaseURL+urlPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -48,95 +40,101 @@ func (c *Client) ListApplications() ([]Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
+		_ = resp.Body.Close()
 		return nil, errors.New("unauthenticated: invalid or missing token (401)")
 	}
 	if resp.StatusCode == http.StatusBadRequest {
+		_ = resp.Body.Close()
 		return nil, errors.New("invalid token (400)")
 	}
 
-	var apps []Application
-	err = json.NewDecoder(resp.Body).Decode(&apps)
+	return resp, nil
+}
+
+func requestJSON[T any](c *Client, method, urlPath string, notFoundMsg string) (T, error) {
+	var result T
+	resp, err := c.doRequest(method, urlPath)
+	if err != nil {
+		return result, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		if notFoundMsg != "" {
+			return result, errors.New(notFoundMsg)
+		}
+		return result, errors.New("not found")
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
+		return result, fmt.Errorf("unexpected response: %s", resp.Status)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	return result, err
+}
+
+func (c *Client) ListProjects() ([]Project, error) {
+	if cached, found := c.cache.Get("projects"); found {
+		return cached.([]Project), nil
+	}
+	projects, err := requestJSON[[]Project](c, "GET", "/api/v1/projects", "")
 	if err != nil {
 		return nil, err
 	}
+	c.cache.Set("projects", projects)
+	return projects, nil
+}
 
-	// Cache the result if cache is enabled
-	if c.cache != nil {
-		c.cache.Set("applications", apps)
+func (c *Client) GetProjectByUUID(uuid string) (*Project, error) {
+	cacheKey := fmt.Sprintf("project_%s", uuid)
+	if cached, found := c.cache.Get(cacheKey); found {
+		p := cached.(Project)
+		return &p, nil
 	}
+	project, err := requestJSON[Project](c, "GET", fmt.Sprintf("/api/v1/projects/%s", uuid), "project not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set(cacheKey, project)
+	return &project, nil
+}
 
+func (c *Client) ListApplications() ([]Application, error) {
+	if cached, found := c.cache.Get("applications"); found {
+		return cached.([]Application), nil
+	}
+	apps, err := requestJSON[[]Application](c, "GET", "/api/v1/applications", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("applications", apps)
 	return apps, nil
 }
 
 func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 	cacheKey := fmt.Sprintf("app_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(ApplicationDetail)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		app := cached.(ApplicationDetail)
+		return &app, nil
 	}
-
-	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
-	req, err := http.NewRequest("GET", url, nil)
+	app, err := requestJSON[ApplicationDetail](c, "GET", fmt.Sprintf("/api/v1/applications/%s", uuid), "application not found")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application not found")
-	}
-
-	var app ApplicationDetail
-	err = json.NewDecoder(resp.Body).Decode(&app)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, app)
-	}
-
+	c.cache.Set(cacheKey, app)
 	return &app, nil
 }
 
 func (c *Client) DeleteApplicationByUUID(uuid string) error {
-	url := fmt.Sprintf("%s/api/v1/applications/%s", c.BaseURL, uuid)
-
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
+	resp, err := c.doRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s", uuid))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return errors.New("invalid token (400)")
-	}
 	if resp.StatusCode == http.StatusNotFound {
 		return errors.New("application not found")
 	}
@@ -144,244 +142,128 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 
-	// Clear relevant cache entries
-	if c.cache != nil {
-		c.cache.Delete(fmt.Sprintf("app_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
-
-		c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
-		c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
-		c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
-		c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
-		c.cache.Delete("applications")
-	}
+	c.cache.Delete(fmt.Sprintf("app_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
+	c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
+	c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
+	c.cache.Delete("applications")
 
 	return nil
 }
 
 func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/logs?lines=-1", c.BaseURL, uuid)
-	req, err := http.NewRequest("GET", url, nil)
+	logs, err := requestJSON[ApplicationLogs](c, "GET", fmt.Sprintf("/api/v1/applications/%s/logs?lines=-1", uuid), "application logs not found")
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return "", errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return "", errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return "", errors.New("application logs not found")
-	}
-
-	var logs ApplicationLogs
-	err = json.NewDecoder(resp.Body).Decode(&logs)
-	if err != nil {
-		return "", err
-	}
-
 	return logs.Logs, nil
 }
 
 func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
 	cacheKey := fmt.Sprintf("app_envs_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return cached.([]EnvironmentVariable), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		return cached.([]EnvironmentVariable), nil
 	}
-
-	url := fmt.Sprintf("%s/api/v1/applications/%s/envs", c.BaseURL, uuid)
-	req, err := http.NewRequest("GET", url, nil)
+	envs, err := requestJSON[[]EnvironmentVariable](c, "GET", fmt.Sprintf("/api/v1/applications/%s/envs", uuid), "application environment variables not found")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application environment variables not found")
-	}
-
-	var envs []EnvironmentVariable
-	err = json.NewDecoder(resp.Body).Decode(&envs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, envs)
-	}
-
+	c.cache.Set(cacheKey, envs)
 	return envs, nil
 }
 
 func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bool) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_start_%s_%v_%v", uuid, force, instantDeploy)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StartDeploymentResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		dep := cached.(StartDeploymentResponse)
+		return &dep, nil
 	}
 
-	url := fmt.Sprintf("%s/api/v1/applications/%s/start", c.BaseURL, uuid)
-	// Build query parameters
-	query := url + "?"
+	path := fmt.Sprintf("/api/v1/applications/%s/start", uuid)
+	var params []string
 	if force {
-		query += "force=true&"
+		params = append(params, "force=true")
 	}
 	if instantDeploy {
-		query += "instant_deploy=true"
+		params = append(params, "instant_deploy=true")
+	}
+	if len(params) > 0 {
+		path += "?" + strings.Join(params, "&")
 	}
 
-	req, err := http.NewRequest("GET", query, nil)
+	deployment, err := requestJSON[StartDeploymentResponse](c, "GET", path, "application not found")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application not found")
-	}
-
-	var deployment StartDeploymentResponse
-	err = json.NewDecoder(resp.Body).Decode(&deployment)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, deployment)
-	}
-
+	c.cache.Set(cacheKey, deployment)
 	return &deployment, nil
 }
 
 func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, error) {
 	cacheKey := fmt.Sprintf("app_stop_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StopApplicationResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		stop := cached.(StopApplicationResponse)
+		return &stop, nil
 	}
-
-	url := fmt.Sprintf("%s/api/v1/applications/%s/stop", c.BaseURL, uuid)
-
-	req, err := http.NewRequest("GET", url, nil)
+	stopResponse, err := requestJSON[StopApplicationResponse](c, "GET", fmt.Sprintf("/api/v1/applications/%s/stop", uuid), "application not found")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application not found")
-	}
-
-	var stopResponse StopApplicationResponse
-	err = json.NewDecoder(resp.Body).Decode(&stopResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, stopResponse)
-	}
-
+	c.cache.Set(cacheKey, stopResponse)
 	return &stopResponse, nil
 }
 
 func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse, error) {
 	cacheKey := fmt.Sprintf("app_restart_%s", uuid)
-	if c.cache != nil {
-		if cached, found := c.cache.Get(cacheKey); found {
-			return new(cached.(StartDeploymentResponse)), nil
-		}
+	if cached, found := c.cache.Get(cacheKey); found {
+		dep := cached.(StartDeploymentResponse)
+		return &dep, nil
 	}
-
-	url := fmt.Sprintf("%s/api/v1/applications/%s/restart", c.BaseURL, uuid)
-
-	req, err := http.NewRequest("POST", url, nil)
+	deployment, err := requestJSON[StartDeploymentResponse](c, "POST", fmt.Sprintf("/api/v1/applications/%s/restart", uuid), "application not found")
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("unauthenticated: invalid or missing token (401)")
-	}
-	if resp.StatusCode == http.StatusBadRequest {
-		return nil, errors.New("invalid token (400)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, errors.New("application not found")
-	}
-
-	var deployment StartDeploymentResponse
-	err = json.NewDecoder(resp.Body).Decode(&deployment)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the result
-	if c.cache != nil {
-		c.cache.Set(cacheKey, deployment)
-	}
-
+	c.cache.Set(cacheKey, deployment)
 	return &deployment, nil
+}
+
+func (c *Client) ListServers() ([]Server, error) {
+	if cached, found := c.cache.Get("servers"); found {
+		return cached.([]Server), nil
+	}
+	servers, err := requestJSON[[]Server](c, "GET", "/api/v1/servers", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("servers", servers)
+	return servers, nil
+}
+
+func (c *Client) ListDatabases() ([]Database, error) {
+	if cached, found := c.cache.Get("databases"); found {
+		return cached.([]Database), nil
+	}
+	databases, err := requestJSON[[]Database](c, "GET", "/api/v1/databases", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("databases", databases)
+	return databases, nil
+}
+
+func (c *Client) ListDeployments() ([]Deployment, error) {
+	if cached, found := c.cache.Get("deployments"); found {
+		return cached.([]Deployment), nil
+	}
+	deployments, err := requestJSON[[]Deployment](c, "GET", "/api/v1/deployments", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("deployments", deployments)
+	return deployments, nil
 }
