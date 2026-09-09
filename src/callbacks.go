@@ -213,7 +213,6 @@ func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 }
 
 func envCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	// ENV viewing is restricted to Private Messages
 	if !cb.IsPrivate() {
 		_ = cb.Answer(c, 0, true, "Environment variables can only be viewed in private chat.", "")
 		return nil
@@ -326,7 +325,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.Write([]byte(logsData)); err != nil {
+	if _, err = tmpFile.Write([]byte(logsData)); err != nil {
 		_ = editCallback(c, cb, "Failed to write logs: "+err.Error(), nil)
 		return err
 	}
@@ -335,7 +334,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	msg, _ := cb.GetMessage(c)
 	if msg != nil {
 		caption := fmt.Sprintf("<b>%s logs</b>", appName)
-		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, kb))
+		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, nil))
 		if err == nil {
 			_ = editCallback(c, cb, fmt.Sprintf("Logs for <b>%s</b> sent as document.", appName), &td.EditTextMessageOpts{ReplyMarkup: kb})
 		}
@@ -479,12 +478,12 @@ func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		Schedule:    schedule,
 	}
 
-	if err := database.AddTask(task); err != nil {
+	if err = database.AddTask(task); err != nil {
 		_ = editCallback(c, cb, "Failed to save task: "+err.Error(), nil)
 		return nil
 	}
 
-	if err := scheduler.ScheduleTask(task); err != nil {
+	if err = scheduler.ScheduleTask(task); err != nil {
 		_ = database.DeleteTask(task.ID.Hex())
 		_ = editCallback(c, cb, "Failed to schedule task: "+err.Error(), nil)
 		return nil
