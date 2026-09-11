@@ -492,3 +492,84 @@ func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := makeBackButton("project_menu:" + uuid)
 	return editCallback(c, cb, fmt.Sprintf("Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &td.EditTextMessageOpts{ReplyMarkup: kb})
 }
+
+func deploymentsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	kb := makeBackButton("start_menu")
+	deps, err := config.Coolify.ListDeployments()
+	if err != nil {
+		return editCallback(c, cb, "Failed to fetch deployments: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	if len(deps) == 0 {
+		return editCallback(c, cb, "No active deployments found.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<b>Active Deployments:</b>\n\n")
+	for _, dep := range deps {
+		sb.WriteString(fmt.Sprintf("ID: <code>%s</code>\n", dep.DeploymentUUID))
+		sb.WriteString(fmt.Sprintf("Status: <code>%s</code>\n", dep.Status))
+		if dep.Commit != "" {
+			sb.WriteString(fmt.Sprintf("Commit: <code>%s</code>\n", dep.Commit))
+		}
+		sb.WriteString("--------------------\n")
+	}
+
+	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
+
+func serversCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	kb := makeBackButton("start_menu")
+	servers, err := config.Coolify.ListServers()
+	if err != nil {
+		return editCallback(c, cb, "Failed to fetch servers: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	if len(servers) == 0 {
+		return editCallback(c, cb, "No servers found.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<b>Registered Servers:</b>\n\n")
+	for _, server := range servers {
+		sb.WriteString(fmt.Sprintf("<b>%s</b>\n", server.Name))
+		if server.IP != "" {
+			sb.WriteString(fmt.Sprintf("IP: <code>%s</code>\n", server.IP))
+		}
+		if server.Description != "" {
+			sb.WriteString(fmt.Sprintf("Description: %s\n", server.Description))
+		}
+		sb.WriteString("--------------------\n")
+	}
+
+	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
+
+func databasesCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
+	kb := makeBackButton("start_menu")
+	dbs, err := config.Coolify.ListDatabases()
+	if err != nil {
+		return editCallback(c, cb, "Failed to fetch databases: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	if len(dbs) == 0 {
+		return editCallback(c, cb, "No databases found.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<b>Registered Databases:</b>\n\n")
+	for _, db := range dbs {
+		sb.WriteString(fmt.Sprintf("<b>%s</b> (%s)\n", db.Name, db.Type))
+		sb.WriteString(fmt.Sprintf("Status: <code>%s</code>\n", db.Status))
+		sb.WriteString(fmt.Sprintf("UUID: <code>%s</code>\n", db.UUID))
+		sb.WriteString("--------------------\n")
+	}
+
+	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+}

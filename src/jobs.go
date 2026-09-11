@@ -2,6 +2,7 @@ package src
 
 import (
 	"coolifymanager/src/database"
+	"coolifymanager/src/scheduler"
 	"fmt"
 	"strings"
 
@@ -22,6 +23,8 @@ func jobsHandler(c *td.Client, msg *td.Message) error {
 }
 
 func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	_ = cb.Answer(c, 0, false, "Processing...", "")
+
 	data := cb.DataString()
 	page := 1
 	if parts := strings.Split(data, ":"); len(parts) > 1 {
@@ -30,8 +33,29 @@ func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	text, kb, err := buildJobsMessage(page)
 	if err != nil {
-		_ = cb.Answer(c, 0, true, err.Error(), "")
-		return nil
+		return editCallback(c, cb, err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+	}
+
+	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+}
+
+func unscheduleCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	taskID := strings.TrimPrefix(cb.DataString(), "unschedule:")
+
+	if err := scheduler.RemoveTask(taskID); err != nil {
+		_ = cb.Answer(c, 0, true, fmt.Sprintf("Warning: %v", err), "")
+	} else {
+		_ = cb.Answer(c, 0, false, "Task removed from scheduler.", "")
+	}
+
+	if err := database.DeleteTask(taskID); err != nil {
+		_ = cb.Answer(c, 0, true, fmt.Sprintf("Error deleting task: %v", err), "")
+		return err
+	}
+
+	text, kb, err := buildJobsMessage(1)
+	if err != nil {
+		return editCallback(c, cb, "Task deleted. No scheduled jobs remaining.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
@@ -44,7 +68,8 @@ func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
 	}
 
 	if len(tasks) == 0 {
-		return "No scheduled jobs found.", nil, nil
+		kb := makeBackButton("start_menu")
+		return "No scheduled jobs found.", kb, nil
 	}
 
 	start, end, buttons := Paginate(len(tasks), page, pageSize, "jobs:")
@@ -52,8 +77,15 @@ func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("<b>Scheduled Jobs (Page %d):</b>\n\n", page))
 
+	kb := &td.ReplyMarkupInlineKeyboard{}
+
 	for _, task := range tasks[start:end] {
-		sb.WriteString(fmt.Sprintf("ID: <code>%s</code>\n", task.ID.Hex()))
+		hexID := task.ID.Hex()
+		shortID := hexID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
+		sb.WriteString(fmt.Sprintf("ID: <code>%s</code>\n", hexID))
 		sb.WriteString(fmt.Sprintf("Name: %s\n", task.Name))
 		sb.WriteString(fmt.Sprintf("Type: %s\n", task.Type))
 		sb.WriteString(fmt.Sprintf("Schedule: %s\n", task.Schedule))
@@ -61,12 +93,20 @@ func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {
 			sb.WriteString(fmt.Sprintf("Next Run: %s\n", task.NextRun.Format("2006-01-02 15:04:05")))
 		}
 		sb.WriteString("--------------------\n")
+
+		btnText := fmt.Sprintf("Unschedule %s (%s)", task.Name, shortID)
+		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+			makeCallbackButton(btnText, "unschedule:"+hexID),
+		})
 	}
 
-	kb := &td.ReplyMarkupInlineKeyboard{}
 	if row := buildPaginationButtonsRow(buttons); len(row) > 0 {
 		kb.Rows = append(kb.Rows, row)
 	}
+
+	kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
+		makeCallbackButton("Main Menu", "start_menu"),
+	})
 
 	return sb.String(), kb, nil
 }

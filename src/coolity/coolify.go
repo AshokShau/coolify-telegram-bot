@@ -128,6 +128,12 @@ func (c *Client) GetApplicationByUUID(uuid string) (*ApplicationDetail, error) {
 	return &app, nil
 }
 
+func (c *Client) clearAppCache(uuid string) {
+	c.cache.Delete(fmt.Sprintf("app_%s", uuid))
+	c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
+	c.cache.Delete("applications")
+}
+
 func (c *Client) DeleteApplicationByUUID(uuid string) error {
 	resp, err := c.doRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s", uuid))
 	if err != nil {
@@ -142,17 +148,7 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 
-	c.cache.Delete(fmt.Sprintf("app_%s", uuid))
-	c.cache.Delete(fmt.Sprintf("app_envs_%s", uuid))
-	c.cache.Delete(fmt.Sprintf("app_start_%s", uuid))
-	c.cache.Delete(fmt.Sprintf("app_start_%s_true_true", uuid))
-	c.cache.Delete(fmt.Sprintf("app_start_%s_true_false", uuid))
-	c.cache.Delete(fmt.Sprintf("app_start_%s_false_true", uuid))
-	c.cache.Delete(fmt.Sprintf("app_start_%s_false_false", uuid))
-	c.cache.Delete(fmt.Sprintf("app_stop_%s", uuid))
-	c.cache.Delete(fmt.Sprintf("app_restart_%s", uuid))
-	c.cache.Delete("applications")
-
+	c.clearAppCache(uuid)
 	return nil
 }
 
@@ -178,12 +174,6 @@ func (c *Client) GetApplicationEnvsByUUID(uuid string) ([]EnvironmentVariable, e
 }
 
 func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bool) (*StartDeploymentResponse, error) {
-	cacheKey := fmt.Sprintf("app_start_%s_%v_%v", uuid, force, instantDeploy)
-	if cached, found := c.cache.Get(cacheKey); found {
-		dep := cached.(StartDeploymentResponse)
-		return &dep, nil
-	}
-
 	path := fmt.Sprintf("/api/v1/applications/%s/start", uuid)
 	var params []string
 	if force {
@@ -196,39 +186,29 @@ func (c *Client) StartApplicationDeployment(uuid string, force, instantDeploy bo
 		path += "?" + strings.Join(params, "&")
 	}
 
-	deployment, err := requestJSON[StartDeploymentResponse](c, "GET", path, "application not found")
+	deployment, err := requestJSON[StartDeploymentResponse](c, "POST", path, "application not found")
 	if err != nil {
 		return nil, err
 	}
-	c.cache.Set(cacheKey, deployment)
+	c.clearAppCache(uuid)
 	return &deployment, nil
 }
 
 func (c *Client) StopApplicationByUUID(uuid string) (*StopApplicationResponse, error) {
-	cacheKey := fmt.Sprintf("app_stop_%s", uuid)
-	if cached, found := c.cache.Get(cacheKey); found {
-		stop := cached.(StopApplicationResponse)
-		return &stop, nil
-	}
-	stopResponse, err := requestJSON[StopApplicationResponse](c, "GET", fmt.Sprintf("/api/v1/applications/%s/stop", uuid), "application not found")
+	stopResponse, err := requestJSON[StopApplicationResponse](c, "POST", fmt.Sprintf("/api/v1/applications/%s/stop", uuid), "application not found")
 	if err != nil {
 		return nil, err
 	}
-	c.cache.Set(cacheKey, stopResponse)
+	c.clearAppCache(uuid)
 	return &stopResponse, nil
 }
 
 func (c *Client) RestartApplicationByUUID(uuid string) (*StartDeploymentResponse, error) {
-	cacheKey := fmt.Sprintf("app_restart_%s", uuid)
-	if cached, found := c.cache.Get(cacheKey); found {
-		dep := cached.(StartDeploymentResponse)
-		return &dep, nil
-	}
 	deployment, err := requestJSON[StartDeploymentResponse](c, "POST", fmt.Sprintf("/api/v1/applications/%s/restart", uuid), "application not found")
 	if err != nil {
 		return nil, err
 	}
-	c.cache.Set(cacheKey, deployment)
+	c.clearAppCache(uuid)
 	return &deployment, nil
 }
 
