@@ -155,7 +155,7 @@ func (c *Client) DeleteApplicationByUUID(uuid string) error {
 }
 
 func (c *Client) GetApplicationLogsByUUID(uuid string) (string, error) {
-	logs, err := requestJSON[ApplicationLogs](c, "GET", fmt.Sprintf("/api/v1/applications/%s/logs?lines=-1", uuid), "application logs not found")
+	logs, err := requestJSON[ApplicationLogs](c, "GET", fmt.Sprintf("/api/v1/applications/%s/logs?lines=0", uuid), "application logs not found")
 	if err != nil {
 		return "", err
 	}
