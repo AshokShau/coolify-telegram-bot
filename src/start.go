@@ -26,6 +26,11 @@ func getStartContent(c *td.Client) (string, td.ReplyMarkup) {
 				makeCallbackButton("Databases", "databases:"),
 			},
 			{
+				makeCallbackButton("Services", "services:"),
+				makeCallbackButton("Team", "team_info:"),
+				makeCallbackButton("Tags", "tags:"),
+			},
+			{
 				{
 					Text: "Fallen Projects",
 					Type: &td.InlineKeyboardButtonTypeUrl{

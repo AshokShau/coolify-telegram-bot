@@ -101,3 +101,65 @@ type Deployment struct {
 	CreatedAt      string `json:"created_at"`
 	UpdatedAt      string `json:"updated_at"`
 }
+
+type ServerResource struct {
+	ID        int64  `json:"id"`
+	UUID      string `json:"uuid"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type ServerDomain struct {
+	IP      string   `json:"ip"`
+	Domains []string `json:"domains"`
+}
+
+type GenericResponse struct {
+	Message string `json:"message"`
+}
+
+type Service struct {
+	ID          int64  `json:"id"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ServiceType string `json:"service_type"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+type ServiceLogs struct {
+	Logs string `json:"logs"`
+}
+
+type AppScheduledTask struct {
+	ID        int64  `json:"id"`
+	UUID      string `json:"uuid"`
+	Name      string `json:"name"`
+	Command   string `json:"command"`
+	Frequency string `json:"frequency"`
+	Enabled   bool   `json:"enabled"`
+	Container string `json:"container"`
+}
+
+type Team struct {
+	ID           int64      `json:"id"`
+	Name         string     `json:"name"`
+	Description  string     `json:"description"`
+	PersonalTeam bool       `json:"personal_team"`
+	Members      []TeamUser `json:"members,omitempty"`
+}
+
+type TeamUser struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type Tag struct {
+	UUID string `json:"uuid"`
+	Name string `json:"name"`
+}

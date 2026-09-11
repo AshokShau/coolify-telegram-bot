@@ -102,6 +102,8 @@ func (c *Client) GetProjectByUUID(uuid string) (*Project, error) {
 	return &project, nil
 }
 
+// Applications
+
 func (c *Client) ListApplications() ([]Application, error) {
 	if cached, found := c.cache.Get("applications"); found {
 		return cached.([]Application), nil
@@ -224,6 +226,54 @@ func (c *Client) ListServers() ([]Server, error) {
 	return servers, nil
 }
 
+func (c *Client) ListDeployments() ([]Deployment, error) {
+	if cached, found := c.cache.Get("deployments"); found {
+		return cached.([]Deployment), nil
+	}
+	deployments, err := requestJSON[[]Deployment](c, "GET", "/api/v1/deployments", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("deployments", deployments)
+	return deployments, nil
+}
+
+// Server extensions
+
+func (c *Client) GetServerResources(uuid string) ([]ServerResource, error) {
+	return requestJSON[[]ServerResource](c, "GET", fmt.Sprintf("/api/v1/servers/%s/resources", uuid), "server not found")
+}
+
+func (c *Client) GetServerDomains(uuid string) ([]ServerDomain, error) {
+	return requestJSON[[]ServerDomain](c, "GET", fmt.Sprintf("/api/v1/servers/%s/domains", uuid), "server not found")
+}
+
+func (c *Client) ValidateServer(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/servers/%s/validate", uuid), "server not found")
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *Client) RunDockerCleanup(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/servers/%s/docker-cleanup/run", uuid), "server not found")
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *Client) RestartServerProxy(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/servers/%s/proxy/restart", uuid), "server not found")
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// Database extensions
+
 func (c *Client) ListDatabases() ([]Database, error) {
 	if cached, found := c.cache.Get("databases"); found {
 		return cached.([]Database), nil
@@ -236,14 +286,186 @@ func (c *Client) ListDatabases() ([]Database, error) {
 	return databases, nil
 }
 
-func (c *Client) ListDeployments() ([]Deployment, error) {
-	if cached, found := c.cache.Get("deployments"); found {
-		return cached.([]Deployment), nil
+func (c *Client) GetDatabaseByUUID(uuid string) (*Database, error) {
+	cacheKey := fmt.Sprintf("db_%s", uuid)
+	if cached, found := c.cache.Get(cacheKey); found {
+		db := cached.(Database)
+		return &db, nil
 	}
-	deployments, err := requestJSON[[]Deployment](c, "GET", "/api/v1/deployments", "")
+	db, err := requestJSON[Database](c, "GET", fmt.Sprintf("/api/v1/databases/%s", uuid), "database not found")
 	if err != nil {
 		return nil, err
 	}
-	c.cache.Set("deployments", deployments)
-	return deployments, nil
+	c.cache.Set(cacheKey, db)
+	return &db, nil
+}
+
+func (c *Client) GetDatabaseLogsByUUID(uuid string) (string, error) {
+	logs, err := requestJSON[ApplicationLogs](c, "GET", fmt.Sprintf("/api/v1/databases/%s/logs", uuid), "database logs not found")
+	if err != nil {
+		return "", err
+	}
+	return logs.Logs, nil
+}
+
+func (c *Client) StartDatabaseByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/databases/%s/start", uuid), "database not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("databases")
+	c.cache.Delete(fmt.Sprintf("db_%s", uuid))
+	return &res, nil
+}
+
+func (c *Client) StopDatabaseByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/databases/%s/stop", uuid), "database not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("databases")
+	c.cache.Delete(fmt.Sprintf("db_%s", uuid))
+	return &res, nil
+}
+
+func (c *Client) RestartDatabaseByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/databases/%s/restart", uuid), "database not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("databases")
+	c.cache.Delete(fmt.Sprintf("db_%s", uuid))
+	return &res, nil
+}
+
+// Service extensions
+
+func (c *Client) ListServices() ([]Service, error) {
+	if cached, found := c.cache.Get("services"); found {
+		return cached.([]Service), nil
+	}
+	services, err := requestJSON[[]Service](c, "GET", "/api/v1/services", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("services", services)
+	return services, nil
+}
+
+func (c *Client) GetServiceByUUID(uuid string) (*Service, error) {
+	cacheKey := fmt.Sprintf("service_%s", uuid)
+	if cached, found := c.cache.Get(cacheKey); found {
+		svc := cached.(Service)
+		return &svc, nil
+	}
+	svc, err := requestJSON[Service](c, "GET", fmt.Sprintf("/api/v1/services/%s", uuid), "service not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set(cacheKey, svc)
+	return &svc, nil
+}
+
+func (c *Client) StartServiceByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/services/%s/start", uuid), "service not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("services")
+	c.cache.Delete(fmt.Sprintf("service_%s", uuid))
+	return &res, nil
+}
+
+func (c *Client) StopServiceByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/services/%s/stop", uuid), "service not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("services")
+	c.cache.Delete(fmt.Sprintf("service_%s", uuid))
+	return &res, nil
+}
+
+func (c *Client) RestartServiceByUUID(uuid string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/services/%s/restart", uuid), "service not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Delete("services")
+	c.cache.Delete(fmt.Sprintf("service_%s", uuid))
+	return &res, nil
+}
+
+func (c *Client) GetServiceLogsByUUID(uuid string) (string, error) {
+	logs, err := requestJSON[ServiceLogs](c, "GET", fmt.Sprintf("/api/v1/services/%s/logs", uuid), "service logs not found")
+	if err != nil {
+		return "", err
+	}
+	return logs.Logs, nil
+}
+
+func (c *Client) GetServiceEnvsByUUID(uuid string) ([]EnvironmentVariable, error) {
+	cacheKey := fmt.Sprintf("service_envs_%s", uuid)
+	if cached, found := c.cache.Get(cacheKey); found {
+		return cached.([]EnvironmentVariable), nil
+	}
+	envs, err := requestJSON[[]EnvironmentVariable](c, "GET", fmt.Sprintf("/api/v1/services/%s/envs", uuid), "service environment variables not found")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set(cacheKey, envs)
+	return envs, nil
+}
+
+// Application scheduled tasks
+
+func (c *Client) ListApplicationScheduledTasks(uuid string) ([]AppScheduledTask, error) {
+	return requestJSON[[]AppScheduledTask](c, "GET", fmt.Sprintf("/api/v1/applications/%s/scheduled-tasks", uuid), "application not found")
+}
+
+func (c *Client) ExecuteApplicationScheduledTask(uuid, taskUUID string) (*GenericResponse, error) {
+	res, err := requestJSON[GenericResponse](c, "POST", fmt.Sprintf("/api/v1/applications/%s/scheduled-tasks/%s/execute", uuid, taskUUID), "task or application not found")
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// Team & Tags
+
+func (c *Client) GetTeam() (*Team, error) {
+	if cached, found := c.cache.Get("team"); found {
+		t := cached.(Team)
+		return &t, nil
+	}
+	team, err := requestJSON[Team](c, "GET", "/api/v1/team", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("team", team)
+	return &team, nil
+}
+
+func (c *Client) ListTeamMembers() ([]TeamUser, error) {
+	if cached, found := c.cache.Get("team_members"); found {
+		return cached.([]TeamUser), nil
+	}
+	members, err := requestJSON[[]TeamUser](c, "GET", "/api/v1/team/members", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("team_members", members)
+	return members, nil
+}
+
+func (c *Client) ListTags() ([]Tag, error) {
+	if cached, found := c.cache.Get("tags"); found {
+		return cached.([]Tag), nil
+	}
+	tags, err := requestJSON[[]Tag](c, "GET", "/api/v1/tags", "")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set("tags", tags)
+	return tags, nil
 }
