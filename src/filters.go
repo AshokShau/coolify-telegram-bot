@@ -20,7 +20,7 @@ func DevCallbackPrefix(c *td.Client, prefix string) func(*td.UpdateNewCallbackQu
 			return false
 		}
 		if !config.IsDev(cb.SenderUserId) {
-			_ = cb.Answer(c, 0, true, "You are not authorized.", "")
+			_ = cb.Answer(c, "You are not authorized.", &td.CallbackAnswerOpts{ShowAlert: true})
 			return false
 		}
 		return true

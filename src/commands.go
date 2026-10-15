@@ -223,7 +223,7 @@ func deployCmdHandler(c *td.Client, msg *td.Message) error {
 	if err != nil {
 		text := fmt.Sprintf("Deployment failed for %s: %v", app.Name, err)
 		if loadingMsg != nil {
-			_, _ = editMsg(c, loadingMsg, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+			_, _ = editMsg(c, loadingMsg, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 		} else {
 			_, _ = msg.ReplyText(c, text, sendOpts(msg, kb))
 		}
@@ -232,7 +232,7 @@ func deployCmdHandler(c *td.Client, msg *td.Message) error {
 
 	resultText := fmt.Sprintf("Deployment started for <b>%s</b>\nDeployment UUID: <code>%s</code>", app.Name, res.DeploymentUUID)
 	if loadingMsg != nil {
-		_, err = editMsg(c, loadingMsg, resultText, &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_, err = editMsg(c, loadingMsg, resultText, &td.EditMessageTextOpts{ReplyMarkup: kb})
 	} else {
 		_, err = msg.ReplyText(c, resultText, sendOpts(msg, kb))
 	}

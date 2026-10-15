@@ -34,8 +34,8 @@ func makeBackButton(data string) *td.ReplyMarkupInlineKeyboard {
 	}
 }
 
-func sendOpts(msg *td.Message, replyMarkup td.ReplyMarkup) *td.SendTextMessageOpts {
-	opts := &td.SendTextMessageOpts{ReplyMarkup: replyMarkup}
+func sendOpts(msg *td.Message, replyMarkup td.ReplyMarkup) *td.SendMessageOpts {
+	opts := &td.SendMessageOpts{ReplyMarkup: replyMarkup}
 	if !msg.IsPrivate() {
 		opts.ReceiverUserID = msg.SenderID()
 	}
@@ -53,7 +53,7 @@ func docOpts(msg *td.Message, caption string, replyMarkup td.ReplyMarkup) *td.Se
 	return opts
 }
 
-func makeEphemeralOpts(opts *td.EditTextMessageOpts) *td.EditEphemeralMessageTextOpts {
+func makeEphemeralOpts(opts *td.EditMessageTextOpts) *td.EditEphemeralMessageTextOpts {
 	if opts == nil {
 		return &td.EditEphemeralMessageTextOpts{}
 	}
@@ -68,7 +68,7 @@ func makeEphemeralOpts(opts *td.EditTextMessageOpts) *td.EditEphemeralMessageTex
 	}
 }
 
-func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessageOpts) (*td.Message, error) {
+func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditMessageTextOpts) (*td.Message, error) {
 	if !msg.IsPrivate() {
 		eOpts := makeEphemeralOpts(opts)
 		if err := c.EditEphemeralMessageText(msg.ChatId, msg.EphemeralMessageId, msg.SenderID(), text, eOpts); err == nil {
@@ -78,7 +78,7 @@ func editMsg(c *td.Client, msg *td.Message, text string, opts *td.EditTextMessag
 	return msg.EditText(c, text, opts)
 }
 
-func editCallback(c *td.Client, cb *td.UpdateNewCallbackQuery, text string, opts *td.EditTextMessageOpts) error {
+func editCallback(c *td.Client, cb *td.UpdateNewCallbackQuery, text string, opts *td.EditMessageTextOpts) error {
 	if !cb.IsPrivate() {
 		msg, err := cb.GetMessage(c)
 		if err != nil {

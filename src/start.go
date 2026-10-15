@@ -59,9 +59,9 @@ func startHandler(c *td.Client, msg *td.Message) error {
 }
 
 func startMenuCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 	text, kb := getStartContent(c)
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func pingHandler(c *td.Client, msg *td.Message) error {

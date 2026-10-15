@@ -23,7 +23,7 @@ func jobsHandler(c *td.Client, msg *td.Message) error {
 }
 
 func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	data := cb.DataString()
 	page := 1
@@ -33,32 +33,32 @@ func jobsPaginationHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	text, kb, err := buildJobsMessage(page)
 	if err != nil {
-		return editCallback(c, cb, err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func unscheduleCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	taskID := strings.TrimPrefix(cb.DataString(), "unschedule:")
 
 	if err := scheduler.RemoveTask(taskID); err != nil {
-		_ = cb.Answer(c, 0, true, fmt.Sprintf("Warning: %v", err), "")
+		_ = cb.Answer(c, fmt.Sprintf("Warning: %v", err), &td.CallbackAnswerOpts{ShowAlert: true})
 	} else {
-		_ = cb.Answer(c, 0, false, "Task removed from scheduler.", "")
+		_ = cb.Answer(c, "Task removed from scheduler.", nil)
 	}
 
 	if err := database.DeleteTask(taskID); err != nil {
-		_ = cb.Answer(c, 0, true, fmt.Sprintf("Error deleting task: %v", err), "")
+		_ = cb.Answer(c, fmt.Sprintf("Error deleting task: %v", err), &td.CallbackAnswerOpts{ShowAlert: true})
 		return err
 	}
 
 	text, kb, err := buildJobsMessage(1)
 	if err != nil {
-		return editCallback(c, cb, "Task deleted. No scheduled jobs remaining.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "Task deleted. No scheduled jobs remaining.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func buildJobsMessage(page int) (string, td.ReplyMarkup, error) {

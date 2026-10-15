@@ -52,13 +52,13 @@ func checkDeleteConfirmation(userID int64, uuid string, now time.Time) DeleteCon
 }
 
 func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	if cbData == "list_projects:projects" {
 		projects, err := config.Coolify.ListProjects()
 		if err != nil || len(projects) == 0 {
-			return editCallback(c, cb, "No projects found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("list_projects:")})
+			return editCallback(c, cb, "No projects found.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("list_projects:")})
 		}
 
 		kb := &td.ReplyMarkupInlineKeyboard{}
@@ -70,7 +70,7 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		kb.Rows = append(kb.Rows, []td.InlineKeyboardButton{
 			makeCallbackButton("All Applications", "list_projects:"),
 		})
-		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "<b>Select a Project:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	apps, err := config.Coolify.ListApplications()
@@ -106,11 +106,11 @@ func listProjectsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	row = append(row, makeCallbackButton("Projects", "list_projects:projects"))
 	kb.Rows = append(kb.Rows, row)
 
-	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select an Application:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	raw := strings.TrimPrefix(cbData, "proj:")
@@ -164,11 +164,11 @@ func projectSelectHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		makeCallbackButton("All Applications", "list_projects:"),
 	})
 
-	return editCallback(c, cb, fmt.Sprintf("<b>Applications in %s:</b>", projectName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("<b>Applications in %s:</b>", projectName), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "project_menu:")
@@ -212,16 +212,16 @@ func projectMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func envCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	if !cb.IsPrivate() {
-		_ = cb.Answer(c, 0, true, "Environment variables can only be viewed in private chat.", "")
+		_ = cb.Answer(c, "Environment variables can only be viewed in private chat.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	}
 
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "env:")
@@ -236,12 +236,12 @@ func envCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := makeBackButton("project_menu:" + uuid)
 
 	if err != nil {
-		_ = editCallback(c, cb, fmt.Sprintf("Failed to fetch environment variables: %v", err), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, fmt.Sprintf("Failed to fetch environment variables: %v", err), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
 	if len(envs) == 0 {
-		_ = editCallback(c, cb, fmt.Sprintf("No environment variables found for <b>%s</b>.", app.Name), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, fmt.Sprintf("No environment variables found for <b>%s</b>.", app.Name), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -255,11 +255,11 @@ func envCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		sb.WriteString(fmt.Sprintf("<code>%s</code> = <code>%s</code>\n", env.Key, val))
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func restartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "restart:")
@@ -267,7 +267,7 @@ func restartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	res, err := config.Coolify.RestartApplicationByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Restart failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -277,11 +277,11 @@ func restartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	} else if res.Message != "" {
 		text += fmt.Sprintf("\nMessage: %s", res.Message)
 	}
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func deployHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "deploy:")
@@ -289,16 +289,16 @@ func deployHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	res, err := config.Coolify.StartApplicationDeployment(uuid, false, false)
 	if err != nil {
-		_ = editCallback(c, cb, "Deploy failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Deploy failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return err
 	}
 
 	text := fmt.Sprintf("Deployment queued!\nDeployment UUID: <code>%s</code>", res.DeploymentUUID)
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "logs:")
 	kb := makeBackButton("project_menu:" + uuid)
@@ -306,7 +306,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = editCallback(c, cb, "Fetching logs...", nil)
 	logsData, err := config.Coolify.GetApplicationLogsByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Logs error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Logs error: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -318,7 +318,7 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	if len(logsData) <= 3000 {
 		text := fmt.Sprintf("<b>Logs for %s:</b>\n\n<code>%s</code>", appName, logsData)
-		return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	tmpFile, err := os.CreateTemp("", "logs-*.txt")
@@ -339,14 +339,14 @@ func logsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		caption := fmt.Sprintf("<b>%s logs</b>", appName)
 		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, nil))
 		if err == nil {
-			_ = editCallback(c, cb, fmt.Sprintf("Logs for <b>%s</b> sent as document.", appName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+			_ = editCallback(c, cb, fmt.Sprintf("Logs for <b>%s</b> sent as document.", appName), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		}
 	}
 	return err
 }
 
 func statusHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, true, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", &td.CallbackAnswerOpts{ShowAlert: true})
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "status:")
@@ -354,16 +354,16 @@ func statusHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	app, err := config.Coolify.GetApplicationByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Status error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Status error: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
 	text := fmt.Sprintf("<b>%s</b>\nCurrent Status: <code>%s</code>", app.Name, app.Status)
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func stopHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "stop:")
@@ -371,11 +371,11 @@ func stopHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	res, err := config.Coolify.StopApplicationByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Stop failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Stop failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
-	return editCallback(c, cb, res.Message, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, res.Message, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func deleteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
@@ -385,31 +385,31 @@ func deleteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	status := checkDeleteConfirmation(cb.SenderUserId, uuid, time.Now())
 	switch status {
 	case DeleteConfirmFirstClick:
-		_ = cb.Answer(c, 0, true, "Warning: Are you sure you want to delete this project? Click Delete again after 2 seconds to confirm.", "")
+		_ = cb.Answer(c, "Warning: Are you sure you want to delete this project? Click Delete again after 2 seconds to confirm.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	case DeleteConfirmTooSoon:
-		_ = cb.Answer(c, 0, true, "Please wait 2 seconds before clicking Delete again.", "")
+		_ = cb.Answer(c, "Please wait 2 seconds before clicking Delete again.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	case DeleteConfirmExpired:
-		_ = cb.Answer(c, 0, true, "Confirmation timed out. Click Delete again after 2 seconds to confirm.", "")
+		_ = cb.Answer(c, "Confirmation timed out. Click Delete again after 2 seconds to confirm.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	case DeleteConfirmProceed:
-		_ = cb.Answer(c, 0, false, "Processing...", "")
+		_ = cb.Answer(c, "Processing...", nil)
 	}
 
 	err := config.Coolify.DeleteApplicationByUUID(uuid)
 	kb := makeBackButton("project_menu:" + uuid)
 
 	if err != nil {
-		_ = editCallback(c, cb, "Delete failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Delete failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
-	return editCallback(c, cb, "Application deleted successfully.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "Application deleted successfully.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func scheduleMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	uuid := strings.TrimPrefix(cbData, "sch_m:")
@@ -425,11 +425,11 @@ func scheduleMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, "<b>Select Action Type:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select Action Type:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func scheduleActionHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	cbData := cb.DataString()
 	data := strings.TrimPrefix(cbData, "sch_a:")
@@ -451,11 +451,11 @@ func scheduleActionHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, "<b>Select Schedule:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select Schedule:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	data := strings.TrimPrefix(cb.DataString(), "sch_c:")
 
@@ -493,20 +493,20 @@ func scheduleCreateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	kb := makeBackButton("project_menu:" + uuid)
-	return editCallback(c, cb, fmt.Sprintf("Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Task scheduled successfully!\n\nID: <code>%s</code>\nType: %s\nSchedule: %s", task.ID.Hex(), actionType, schedule), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func deploymentsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	kb := makeBackButton("start_menu")
 	deps, err := config.Coolify.ListDeployments()
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch deployments: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch deployments: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	if len(deps) == 0 {
-		return editCallback(c, cb, "No active deployments found.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "No active deployments found.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	var sb strings.Builder
@@ -520,19 +520,19 @@ func deploymentsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) err
 		sb.WriteString("--------------------\n")
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serversCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	servers, err := config.Coolify.ListServers()
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch servers: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "Failed to fetch servers: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	if len(servers) == 0 {
-		return editCallback(c, cb, "No servers found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "No servers found.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
@@ -545,16 +545,16 @@ func serversCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		makeCallbackButton("Back", "start_menu"),
 	})
 
-	return editCallback(c, cb, "<b>Select a Server:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select a Server:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_m:")
 	servers, err := config.Coolify.ListServers()
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch server info: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("servers:")})
+		return editCallback(c, cb, "Failed to fetch server info: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("servers:")})
 	}
 
 	var s *coolify.Server
@@ -566,7 +566,7 @@ func serverMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	}
 
 	if s == nil {
-		return editCallback(c, cb, "Server not found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("servers:")})
+		return editCallback(c, cb, "Server not found.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("servers:")})
 	}
 
 	text := fmt.Sprintf("<b>Server: %s</b>\nIP: <code>%s</code>\nUser: <code>%s</code>\nPort: %d", s.Name, s.IP, s.User, s.Port)
@@ -593,22 +593,22 @@ func serverMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverResourcesHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_res:")
 	kb := makeBackButton("srv_m:" + uuid)
 
 	resources, err := config.Coolify.GetServerResources(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch resources: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch resources: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	if len(resources) == 0 {
-		return editCallback(c, cb, "No resources found for this server.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "No resources found for this server.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	var sb strings.Builder
@@ -618,22 +618,22 @@ func serverResourcesHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		sb.WriteString("--------------------\n")
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverDomainsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_dom:")
 	kb := makeBackButton("srv_m:" + uuid)
 
 	domains, err := config.Coolify.GetServerDomains(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch domains: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch domains: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	if len(domains) == 0 {
-		return editCallback(c, cb, "No domains found for this server.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "No domains found for this server.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	var sb strings.Builder
@@ -643,61 +643,61 @@ func serverDomainsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		sb.WriteString("--------------------\n")
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverValidateHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_val:")
 	kb := makeBackButton("srv_m:" + uuid)
 
 	res, err := config.Coolify.ValidateServer(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Validation failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Validation failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Validation result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Validation result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverCleanupHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_clean:")
 	kb := makeBackButton("srv_m:" + uuid)
 
 	res, err := config.Coolify.RunDockerCleanup(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Docker cleanup failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Docker cleanup failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Cleanup result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Cleanup result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serverProxyRestartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "srv_prx:")
 	kb := makeBackButton("srv_m:" + uuid)
 
 	res, err := config.Coolify.RestartServerProxy(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Proxy restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Proxy restart failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Proxy restart result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Proxy restart result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databasesCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	dbs, err := config.Coolify.ListDatabases()
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch databases: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "Failed to fetch databases: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	if len(dbs) == 0 {
-		return editCallback(c, cb, "No databases found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "No databases found.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
@@ -711,16 +711,16 @@ func databasesCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error
 		makeCallbackButton("Back", "start_menu"),
 	})
 
-	return editCallback(c, cb, "<b>Select a Database:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select a Database:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databaseMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "db_m:")
 	db, err := config.Coolify.GetDatabaseByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch database: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("databases:")})
+		return editCallback(c, cb, "Failed to fetch database: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("databases:")})
 	}
 
 	text := fmt.Sprintf("<b>Database: %s</b>\nType: %s\nStatus: <code>%s</code>", db.Name, db.Type, db.Status)
@@ -741,53 +741,53 @@ func databaseMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databaseStartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "db_start:")
 	kb := makeBackButton("db_m:" + uuid)
 
 	res, err := config.Coolify.StartDatabaseByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Database start failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Database start failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Database start result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Database start result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databaseStopHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "db_stop:")
 	kb := makeBackButton("db_m:" + uuid)
 
 	res, err := config.Coolify.StopDatabaseByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Database stop failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Database stop failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Database stop result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Database stop result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databaseRestartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "db_rest:")
 	kb := makeBackButton("db_m:" + uuid)
 
 	res, err := config.Coolify.RestartDatabaseByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Database restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Database restart failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Database restart result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Database restart result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func databaseLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "db_logs:")
 	kb := makeBackButton("db_m:" + uuid)
@@ -795,7 +795,7 @@ func databaseLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = editCallback(c, cb, "Fetching database logs...", nil)
 	logsData, err := config.Coolify.GetDatabaseLogsByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Database logs error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Database logs error: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -807,7 +807,7 @@ func databaseLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	if len(logsData) <= 3000 {
 		text := fmt.Sprintf("<b>Logs for database %s:</b>\n\n<code>%s</code>", dbName, logsData)
-		return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	tmpFile, err := os.CreateTemp("", "db-logs-*.txt")
@@ -828,7 +828,7 @@ func databaseLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		caption := fmt.Sprintf("<b>%s logs</b>", dbName)
 		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, nil))
 		if err == nil {
-			_ = editCallback(c, cb, fmt.Sprintf("Logs for database <b>%s</b> sent as document.", dbName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+			_ = editCallback(c, cb, fmt.Sprintf("Logs for database <b>%s</b> sent as document.", dbName), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		}
 	}
 	return err
@@ -837,15 +837,15 @@ func databaseLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 // Services handlers
 
 func servicesCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	services, err := config.Coolify.ListServices()
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch services: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "Failed to fetch services: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	if len(services) == 0 {
-		return editCallback(c, cb, "No services found.", &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("start_menu")})
+		return editCallback(c, cb, "No services found.", &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("start_menu")})
 	}
 
 	kb := &td.ReplyMarkupInlineKeyboard{}
@@ -858,16 +858,16 @@ func servicesCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 		makeCallbackButton("Back", "start_menu"),
 	})
 
-	return editCallback(c, cb, "<b>Select a Service:</b>", &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, "<b>Select a Service:</b>", &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serviceMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_m:")
 	svc, err := config.Coolify.GetServiceByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch service: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: makeBackButton("services:")})
+		return editCallback(c, cb, "Failed to fetch service: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: makeBackButton("services:")})
 	}
 
 	text := fmt.Sprintf("<b>Service: %s</b>\nType: <code>%s</code>", svc.Name, svc.ServiceType)
@@ -894,53 +894,53 @@ func serviceMenuHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		},
 	}
 
-	return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serviceStartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_start:")
 	kb := makeBackButton("svc_m:" + uuid)
 
 	res, err := config.Coolify.StartServiceByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Service start failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Service start failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Service start result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Service start result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serviceStopHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_stop:")
 	kb := makeBackButton("svc_m:" + uuid)
 
 	res, err := config.Coolify.StopServiceByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Service stop failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Service stop failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Service stop result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Service stop result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serviceRestartHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_rest:")
 	kb := makeBackButton("svc_m:" + uuid)
 
 	res, err := config.Coolify.RestartServiceByUUID(uuid)
 	if err != nil {
-		return editCallback(c, cb, "Service restart failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Service restart failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
-	return editCallback(c, cb, fmt.Sprintf("Service restart result: %s", res.Message), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, fmt.Sprintf("Service restart result: %s", res.Message), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func serviceLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_logs:")
 	kb := makeBackButton("svc_m:" + uuid)
@@ -948,7 +948,7 @@ func serviceLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	_ = editCallback(c, cb, "Fetching service logs...", nil)
 	logsData, err := config.Coolify.GetServiceLogsByUUID(uuid)
 	if err != nil {
-		_ = editCallback(c, cb, "Service logs error: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, "Service logs error: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -960,7 +960,7 @@ func serviceLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	if len(logsData) <= 3000 {
 		text := fmt.Sprintf("<b>Logs for service %s:</b>\n\n<code>%s</code>", svcName, logsData)
-		return editCallback(c, cb, text, &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, text, &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	tmpFile, err := os.CreateTemp("", "svc-logs-*.txt")
@@ -981,7 +981,7 @@ func serviceLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		caption := fmt.Sprintf("<b>%s logs</b>", svcName)
 		_, err = msg.ReplyDocument(c, td.InputFileLocal{Path: tmpFile.Name()}, docOpts(msg, caption, nil))
 		if err == nil {
-			_ = editCallback(c, cb, fmt.Sprintf("Logs for service <b>%s</b> sent as document.", svcName), &td.EditTextMessageOpts{ReplyMarkup: kb})
+			_ = editCallback(c, cb, fmt.Sprintf("Logs for service <b>%s</b> sent as document.", svcName), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		}
 	}
 	return err
@@ -989,11 +989,11 @@ func serviceLogsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 func serviceEnvHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	if !cb.IsPrivate() {
-		_ = cb.Answer(c, 0, true, "Environment variables can only be viewed in private chat.", "")
+		_ = cb.Answer(c, "Environment variables can only be viewed in private chat.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	}
 
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "svc_env:")
 	svc, err := config.Coolify.GetServiceByUUID(uuid)
@@ -1006,12 +1006,12 @@ func serviceEnvHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	kb := makeBackButton("svc_m:" + uuid)
 
 	if err != nil {
-		_ = editCallback(c, cb, fmt.Sprintf("Failed to fetch service envs: %v", err), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, fmt.Sprintf("Failed to fetch service envs: %v", err), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
 	if len(envs) == 0 {
-		_ = editCallback(c, cb, fmt.Sprintf("No environment variables found for service <b>%s</b>.", svc.Name), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		_ = editCallback(c, cb, fmt.Sprintf("No environment variables found for service <b>%s</b>.", svc.Name), &td.EditMessageTextOpts{ReplyMarkup: kb})
 		return nil
 	}
 
@@ -1025,24 +1025,24 @@ func serviceEnvHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		sb.WriteString(fmt.Sprintf("<code>%s</code> = <code>%s</code>\n", env.Key, val))
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 // App tasks, Team, Tags handlers
 
 func appTasksHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	uuid := strings.TrimPrefix(cb.DataString(), "app_tasks:")
 	tasks, err := config.Coolify.ListApplicationScheduledTasks(uuid)
 	kb := makeBackButton("project_menu:" + uuid)
 
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch scheduled tasks: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch scheduled tasks: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	if len(tasks) == 0 {
-		return editCallback(c, cb, "No scheduled tasks found for this application.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "No scheduled tasks found for this application.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	kbTasks := &td.ReplyMarkupInlineKeyboard{}
@@ -1063,11 +1063,11 @@ func appTasksHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		makeCallbackButton("Back", "project_menu:"+uuid),
 	})
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kbTasks})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kbTasks})
 }
 
 func appTaskExecuteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	data := strings.TrimPrefix(cb.DataString(), "app_exec:")
 	parts := strings.Split(data, ":")
@@ -1079,24 +1079,24 @@ func appTaskExecuteHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	res, err := config.Coolify.ExecuteApplicationScheduledTask(uuid, taskUUID)
 	if err != nil {
-		return editCallback(c, cb, "Task execution failed: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Task execution failed: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	msg := "Task execution triggered successfully."
 	if res.Message != "" {
 		msg = res.Message
 	}
-	return editCallback(c, cb, msg, &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, msg, &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func teamInfoHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	team, err := config.Coolify.GetTeam()
 	kb := makeBackButton("start_menu")
 
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch team info: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch team info: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	members, _ := config.Coolify.ListTeamMembers()
@@ -1120,21 +1120,21 @@ func teamInfoHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		}
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }
 
 func tagsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
-	_ = cb.Answer(c, 0, false, "Processing...", "")
+	_ = cb.Answer(c, "Processing...", nil)
 
 	tags, err := config.Coolify.ListTags()
 	kb := makeBackButton("start_menu")
 
 	if err != nil {
-		return editCallback(c, cb, "Failed to fetch tags: "+err.Error(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "Failed to fetch tags: "+err.Error(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	if len(tags) == 0 {
-		return editCallback(c, cb, "No tags found.", &td.EditTextMessageOpts{ReplyMarkup: kb})
+		return editCallback(c, cb, "No tags found.", &td.EditMessageTextOpts{ReplyMarkup: kb})
 	}
 
 	var sb strings.Builder
@@ -1143,5 +1143,5 @@ func tagsHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		sb.WriteString(fmt.Sprintf("- <b>%s</b> (<code>%s</code>)\n", t.Name, t.UUID))
 	}
 
-	return editCallback(c, cb, sb.String(), &td.EditTextMessageOpts{ReplyMarkup: kb})
+	return editCallback(c, cb, sb.String(), &td.EditMessageTextOpts{ReplyMarkup: kb})
 }

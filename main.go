@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("Invalid API_ID: %v", err)
 	}
 
-	tdlibLibraryPath := "./libtdjson.so.1.8.66"
+	tdlibLibraryPath := "./libtdjson.so.1.8.68"
 	bot, err := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientOpts{
 		LibraryPath: tdlibLibraryPath,
 		ParseMode:   gotdbot.ParseModeHTML,
