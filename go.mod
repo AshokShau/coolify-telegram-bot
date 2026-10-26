@@ -1,15 +1,15 @@
 module coolifymanager
 
-go 1.26.0
+go 1.27
 
 require (
-	github.com/AshokShau/gotdbot v0.9.7-0.20261014122449-a88c95766955
+	github.com/AshokShau/gotdbot v0.10.2-0.20261025174322-6361b7b050cd
 	github.com/go-co-op/gocron/v2 v2.22.0
 	go.mongodb.org/mongo-driver/v2 v2.9.2
 )
 
 require (
-	github.com/ebitengine/purego v0.11.1 // indirect
+	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect

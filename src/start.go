@@ -9,7 +9,7 @@ import (
 )
 
 func getStartContent(c *td.Client) (string, td.ReplyMarkup) {
-	text := fmt.Sprintf("Welcome to <b>%s</b> — your assistant to manage Coolify projects.", c.Me.FirstName)
+	text := fmt.Sprintf("Welcome to <b>%s</b> — your assistant to manage Coolify projects.", c.Me().FirstName)
 
 	kb := &td.ReplyMarkupInlineKeyboard{
 		Rows: [][]td.InlineKeyboardButton{

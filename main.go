@@ -30,11 +30,11 @@ func main() {
 		log.Fatalf("Invalid API_ID: %v", err)
 	}
 
-	tdlibLibraryPath := "./libtdjson.so.1.8.68"
+	tdlibLibraryPath := "./libtdjson.so.1.8.69"
 	bot, err := gotdbot.NewClient(int32(apiID), config.ApiHash, config.Token, &gotdbot.ClientOpts{
 		LibraryPath: tdlibLibraryPath,
 		ParseMode:   gotdbot.ParseModeHTML,
-		AutoRetry:   &gotdbot.AutoRetry{MaxFloodWait: 5 * time.Minute, ChatNotFound: true},
+		AutoRetry:   &gotdbot.AutoRetry{MaxFloodWait: 1 * time.Minute, ChatNotFound: true},
 	})
 
 	if err != nil {
